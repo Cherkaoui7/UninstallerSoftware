@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Uninstaller.App/Uninstaller.App.csproj" />
+    <Project Path="src/Uninstaller.Core/Uninstaller.Core.csproj" />
+    <Project Path="src/Uninstaller.Domain/Uninstaller.Domain.csproj" />
+    <Project Path="src/Uninstaller.Infrastructure/Uninstaller.Infrastructure.csproj" />
+    <Project Path="src/Uninstaller.Windows/Uninstaller.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Uninstaller.Core.Tests/Uninstaller.Core.Tests.csproj" />
+    <Project Path="tests/Uninstaller.Domain.Tests/Uninstaller.Domain.Tests.csproj" />
+    <Project Path="tests/Uninstaller.Infrastructure.Tests/Uninstaller.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Uninstaller.Windows.Tests/Uninstaller.Windows.Tests.csproj" />
+  </Folder>
+</Solution>
