@@ -7,6 +7,7 @@
     <Project Path="src/Uninstaller.Windows/Uninstaller.Windows.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Uninstaller.App.Tests/Uninstaller.App.Tests.csproj" />
     <Project Path="tests/Uninstaller.Core.Tests/Uninstaller.Core.Tests.csproj" />
     <Project Path="tests/Uninstaller.Domain.Tests/Uninstaller.Domain.Tests.csproj" />
     <Project Path="tests/Uninstaller.Infrastructure.Tests/Uninstaller.Infrastructure.Tests.csproj" />

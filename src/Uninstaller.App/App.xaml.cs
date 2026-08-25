@@ -23,6 +23,7 @@ public partial class App : Application
                 services.AddCore();
                 services.AddInfrastructure();
                 services.AddWindows();
+                services.AddSingleton<ViewModels.MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();

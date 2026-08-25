@@ -1,9 +1,12 @@
 using System;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Uninstaller.Core.Abstractions;
 using Uninstaller.Infrastructure.Persistence;
+using Uninstaller.Infrastructure.Persistence.Repositories;
 
 namespace Uninstaller.Infrastructure;
 
@@ -11,6 +14,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
+        services.AddScoped<IApplicationRepository, ApplicationRepository>();
+
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var dbDirectory = Path.Combine(localAppData, "Uninstaller", "Data");
         var logDirectory = Path.Combine(localAppData, "Uninstaller", "Logs");

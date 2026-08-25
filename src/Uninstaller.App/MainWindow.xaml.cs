@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -16,8 +16,11 @@ namespace Uninstaller.App;
 /// </summary>
 public partial class MainWindow : Window
 {
-    public MainWindow()
+    public MainWindow(ViewModels.MainViewModel viewModel)
     {
         InitializeComponent();
+        DataContext = viewModel;
+
+        Loaded += async (s, e) => await viewModel.InitializeAsync();
     }
 }

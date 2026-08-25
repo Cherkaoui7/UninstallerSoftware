@@ -1,6 +1,11 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Uninstaller.Core.Models;
+
 namespace Uninstaller.Core.Abstractions;
 
 public interface IRegistryService
 {
-    // Read operations only for Phase 0
+    Task<IReadOnlyList<RawRegistryApplication>> GetUninstallEntriesAsync(CancellationToken cancellationToken);
 }

@@ -20,6 +20,12 @@ public sealed class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => a.Name);
+            
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => a.RegistryKeyName);
+
         modelBuilder.Entity<UninstallSession>()
             .HasOne<Application>()
             .WithMany()
