@@ -217,7 +217,7 @@ public class BackupService : IBackupService
 
         return result;
     }
-}
+
 
     public Task<Backup?> GetBackupAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
