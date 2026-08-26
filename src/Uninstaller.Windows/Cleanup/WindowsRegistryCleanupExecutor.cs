@@ -55,7 +55,38 @@ public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
         var hiveString = parts[0];
         var subKeyString = parts[1];
 
-        // Ensure we are not deleting a protected root
+        // Positive authorization: assert that the runtime-resolved path exactly matches
+        // the identity that was authorized at preflight time.
+        // This gates the executor on the specific authorized identity, not just "not on the deny-list."
+        if (!string.IsNullOrEmpty(context.ExpectedRegistryHive) || !string.IsNullOrEmpty(context.ExpectedRegistryKeyPath))
+        {
+            // Normalize hive aliases to a canonical short form for comparison
+            var resolvedHive = NormalizeHive(hiveString);
+            var expectedHive = NormalizeHive(context.ExpectedRegistryHive);
+
+            if (!string.Equals(resolvedHive, expectedHive, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Outcome = CleanupOutcome.ValidationFailed;
+                result.FailureReason = $"Registry hive mismatch: authorized for '{expectedHive}' but target is '{resolvedHive}'.";
+                result.WasFinalValidationPerformed = true;
+                return Task.FromResult(result);
+            }
+
+            // For values, subKeyString contains "KeyPath::ValueName"; compare only the key portion
+            var runtimeKeyPath = context.ArtifactType == ArtifactType.RegistryValue
+                ? subKeyString.Split("::")[0]
+                : subKeyString;
+
+            if (!string.Equals(runtimeKeyPath, context.ExpectedRegistryKeyPath, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Outcome = CleanupOutcome.ValidationFailed;
+                result.FailureReason = "Registry key path changed between authorization and execution.";
+                result.WasFinalValidationPerformed = true;
+                return Task.FromResult(result);
+            }
+        }
+
+        // Secondary safety net: deny-list of protected system roots
         var subKeyLower = subKeyString.ToLowerInvariant();
         if (ProtectedRoots.Any(pr => pr.Equals(subKeyLower, StringComparison.OrdinalIgnoreCase)))
         {
@@ -65,7 +96,18 @@ public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
             return Task.FromResult(result);
         }
 
+        // Secondary safety net: minimum depth guard
+        var subKeyParts = subKeyString.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if (context.ArtifactType == ArtifactType.RegistryKey && subKeyParts.Length < 2)
+        {
+            result.Outcome = CleanupOutcome.Protected;
+            result.FailureReason = "Target registry key is too shallow to safely delete.";
+            result.WasFinalValidationPerformed = true;
+            return Task.FromResult(result);
+        }
+
         result.WasFinalValidationPerformed = true;
+
 
         using var baseKey = GetBaseKey(hiveString);
         if (baseKey == null)
@@ -190,6 +232,23 @@ public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
             "HKEY_USERS" or "HKU" => Microsoft.Win32.Registry.Users,
             "HKEY_CURRENT_CONFIG" or "HKCC" => Microsoft.Win32.Registry.CurrentConfig,
             _ => null
+        };
+    }
+
+    /// <summary>
+    /// Maps both long-form (HKEY_CURRENT_USER) and short-form (HKCU) aliases to
+    /// a single canonical short form for reliable comparison.
+    /// </summary>
+    private static string NormalizeHive(string hive)
+    {
+        return hive.ToUpperInvariant() switch
+        {
+            "HKEY_CLASSES_ROOT"   or "HKCR" => "HKCR",
+            "HKEY_CURRENT_USER"   or "HKCU" => "HKCU",
+            "HKEY_LOCAL_MACHINE"  or "HKLM" => "HKLM",
+            "HKEY_USERS"          or "HKU"  => "HKU",
+            "HKEY_CURRENT_CONFIG" or "HKCC" => "HKCC",
+            _ => hive.ToUpperInvariant()
         };
     }
 }

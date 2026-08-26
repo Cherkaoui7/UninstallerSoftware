@@ -23,6 +23,13 @@ public class AuthorizedExecutionContext
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
-    // Expected boundary root for final validation
+    // Expected boundary root for final validation (filesystem)
     public string ExpectedRootPath { get; set; } = string.Empty;
+
+    // Positive registry identity: the exact hive and key path authorized at preflight time.
+    // The executor asserts these match the runtime-resolved path before any mutation.
+    // Format for key:   HKCU (canonical short form)
+    // Format for value: key path component only, with value name carried separately.
+    public string ExpectedRegistryHive { get; set; } = string.Empty;
+    public string ExpectedRegistryKeyPath { get; set; } = string.Empty;
 }

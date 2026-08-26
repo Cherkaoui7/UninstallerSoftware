@@ -107,8 +107,46 @@ public class WindowsRegistryCleanupExecutorTests : IDisposable
         result.Outcome.Should().Be(CleanupOutcome.NotFound);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_HiveMismatch_ShouldFail()
+    {
+        var targetPath = $@"HKCU\Software\{_testBaseKeyName}_4";
+        var context = CreateContext(targetPath, ArtifactType.RegistryKey);
+        // Claim it was authorized for HKLM — executor must reject
+        context.ExpectedRegistryHive = "HKLM";
+        context.ExpectedRegistryKeyPath = $@"Software\{_testBaseKeyName}_4";
+
+        var result = await _executor.ExecuteAsync(context);
+
+        result.Success.Should().BeFalse();
+        result.Outcome.Should().Be(CleanupOutcome.ValidationFailed);
+        result.FailureReason.Should().Contain("hive mismatch");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_KeyPathMismatch_ShouldFail()
+    {
+        var targetPath = $@"HKCU\Software\{_testBaseKeyName}_5";
+        var context = CreateContext(targetPath, ArtifactType.RegistryKey);
+        // Claim it was authorized for a different subkey
+        context.ExpectedRegistryHive = "HKCU";
+        context.ExpectedRegistryKeyPath = $@"Software\{_testBaseKeyName}_Different";
+
+        var result = await _executor.ExecuteAsync(context);
+
+        result.Success.Should().BeFalse();
+        result.Outcome.Should().Be(CleanupOutcome.ValidationFailed);
+        result.FailureReason.Should().Contain("changed between authorization and execution");
+    }
+
     private AuthorizedExecutionContext CreateContext(string path, ArtifactType type)
     {
+        // Parse hive and key path from the canonical path so tests populate identity correctly
+        var parts = path.Split('\\', 2);
+        var hive = parts.Length > 0 ? parts[0] : string.Empty;
+        // For value paths (KeyPath::ValueName), strip the value name for ExpectedRegistryKeyPath
+        var keyPath = parts.Length > 1 ? parts[1].Split("::")[0] : string.Empty;
+
         return new AuthorizedExecutionContext
         {
             CleanupPlanItemId = Guid.NewGuid(),
@@ -119,7 +157,9 @@ public class WindowsRegistryCleanupExecutorTests : IDisposable
             BackupVerificationStatus = BackupVerificationStatus.Verified,
             ApplicationId = Guid.NewGuid(),
             ExecutionAuthorizationId = Guid.NewGuid(),
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            ExpectedRegistryHive = hive,
+            ExpectedRegistryKeyPath = keyPath
         };
     }
 
