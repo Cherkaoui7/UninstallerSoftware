@@ -104,29 +104,37 @@ public class WindowsFileCleanupExecutor : IFileCleanupExecutor
                 return Task.FromResult(result);
             }
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex)
         {
-            result.Outcome = CleanupOutcome.AccessDenied;
-            result.FailureReason = ex.Message;
-            return Task.FromResult(result);
-        }
-        catch (IOException ex)
-        {
-            // In .NET, sharing violations (locked file) and directory not empty both throw IOException.
-            if (context.ArtifactType == ArtifactType.Directory)
-            {
-                result.Outcome = CleanupOutcome.DirectoryNotEmpty;
-            }
-            else
+            // Map HResult where possible for exact outcomes
+            const int ERROR_SHARING_VIOLATION = unchecked((int)0x80070020);
+            const int ERROR_LOCK_VIOLATION = unchecked((int)0x80070021);
+            const int ERROR_DIR_NOT_EMPTY = unchecked((int)0x80070091);
+            const int ERROR_ACCESS_DENIED = unchecked((int)0x80070005);
+            const int ERROR_FILE_NOT_FOUND = unchecked((int)0x80070002);
+            const int ERROR_PATH_NOT_FOUND = unchecked((int)0x80070003);
+
+            if (ex.HResult == ERROR_SHARING_VIOLATION || ex.HResult == ERROR_LOCK_VIOLATION)
             {
                 result.Outcome = CleanupOutcome.Locked;
             }
-            result.FailureReason = ex.Message;
-            return Task.FromResult(result);
-        }
-        catch (Exception ex)
-        {
-            result.Outcome = CleanupOutcome.DeleteFailed;
+            else if (ex.HResult == ERROR_DIR_NOT_EMPTY)
+            {
+                result.Outcome = CleanupOutcome.DirectoryNotEmpty;
+            }
+            else if (ex.HResult == ERROR_ACCESS_DENIED)
+            {
+                result.Outcome = CleanupOutcome.AccessDenied;
+            }
+            else if (ex.HResult == ERROR_FILE_NOT_FOUND || ex.HResult == ERROR_PATH_NOT_FOUND)
+            {
+                result.Outcome = CleanupOutcome.NotFound;
+            }
+            else
+            {
+                result.Outcome = CleanupOutcome.DeleteFailed;
+            }
+            
             result.FailureReason = ex.Message;
             return Task.FromResult(result);
         }
