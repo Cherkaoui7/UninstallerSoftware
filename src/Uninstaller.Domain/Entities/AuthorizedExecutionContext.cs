@@ -32,4 +32,9 @@ public class AuthorizedExecutionContext
     // Format for value: key path component only, with value name carried separately.
     public string ExpectedRegistryHive { get; set; } = string.Empty;
     public string ExpectedRegistryKeyPath { get; set; } = string.Empty;
+
+    // Positive shortcut identity: the exact .lnk path and its target recorded at preflight time.
+    // The executor re-reads these from the live filesystem and asserts they still match
+    // before any deletion. If either has changed, the result is IdentityMismatch.
+    public string ExpectedShortcutTarget { get; set; } = string.Empty;
 }

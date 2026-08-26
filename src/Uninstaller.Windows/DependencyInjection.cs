@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddTransient<IProcessExecutor, WindowsProcessExecutor>();
         services.AddSingleton<IFileCleanupExecutor, WindowsFileCleanupExecutor>();
         services.AddSingleton<IRegistryCleanupExecutor, WindowsRegistryCleanupExecutor>();
+        services.AddSingleton<IShortcutCleanupExecutor, WindowsShortcutCleanupExecutor>();
         services.AddSingleton<IBackupStorage, Uninstaller.Windows.Backups.WindowsBackupStorage>();
         services.AddTransient<IFileBackupProvider, Uninstaller.Windows.Backups.WindowsFileBackupProvider>();
         services.AddTransient<IRegistryBackupProvider, Uninstaller.Windows.Backups.WindowsRegistryBackupProvider>();

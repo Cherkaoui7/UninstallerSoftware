@@ -14,5 +14,6 @@ public enum CleanupOutcome
     DirectoryNotEmpty = 9,
     DeleteFailed = 10,
     VerificationFailed = 11,
-    Cancelled = 12
+    Cancelled = 12,
+    IdentityMismatch = 13
 }
