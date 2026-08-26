@@ -16,6 +16,7 @@
         <!-- Toolbar -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
             <Button Content="Scan" Command="{Binding ScanCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
+            <Button Content="Uninstall" Command="{Binding UninstallCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
             <Button Content="Cancel" Command="{Binding CancelCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
             
             <TextBlock Text="Search:" VerticalAlignment="Center" Margin="10,0,5,0" />
@@ -25,6 +26,7 @@
         <!-- Applications Grid -->
         <DataGrid Grid.Row="1" 
                   ItemsSource="{Binding ApplicationsView}" 
+                  SelectedItem="{Binding SelectedApplication, Mode=TwoWay}"
                   AutoGenerateColumns="False" 
                   IsReadOnly="True"
                   SelectionMode="Single">
@@ -32,6 +34,7 @@
                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
                 <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
                 <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="1.5*" />
+                <DataGridTextColumn Header="Status" Binding="{Binding UninstallStatus}" Width="*" />
                 <DataGridTextColumn Header="Source" Binding="{Binding RegistrySource}" Width="*" />
                 <DataGridTextColumn Header="Install Location" Binding="{Binding InstallLocation}" Width="2*" />
             </DataGrid.Columns>

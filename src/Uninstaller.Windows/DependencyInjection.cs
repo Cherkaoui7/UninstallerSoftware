@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddTransient<IProcessService, WindowsProcessService>();
         services.AddTransient<IServiceManager, WindowsServiceManager>();
         services.AddTransient<ITaskScheduler, WindowsTaskScheduler>();
+        services.AddTransient<IProcessExecutor, WindowsProcessExecutor>();
         return services;
     }
 }

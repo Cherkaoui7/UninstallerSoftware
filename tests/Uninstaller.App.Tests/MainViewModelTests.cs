@@ -13,19 +13,27 @@ namespace Uninstaller.App.Tests;
 
 public class MainViewModelTests
 {
-    private readonly Mock<IDiscoveryService> _discoveryServiceMock;
-    private readonly Mock<IApplicationRepository> _repositoryMock;
+    private readonly Mock<IDiscoveryService> _discoveryMock;
+    private readonly Mock<IApplicationRepository> _repoMock;
+    private readonly Mock<ICommandParser> _parserMock;
+    private readonly Mock<IUninstallService> _uninstallServiceMock;
     private readonly MainViewModel _viewModel;
 
     public MainViewModelTests()
     {
-        _discoveryServiceMock = new Mock<IDiscoveryService>();
-        _repositoryMock = new Mock<IApplicationRepository>();
+        _discoveryMock = new Mock<IDiscoveryService>();
+        _repoMock = new Mock<IApplicationRepository>();
+        _parserMock = new Mock<ICommandParser>();
+        _uninstallServiceMock = new Mock<IUninstallService>();
         
-        _repositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        _repoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Application>());
 
-        _viewModel = new MainViewModel(_discoveryServiceMock.Object, _repositoryMock.Object);
+        _viewModel = new MainViewModel(
+            _discoveryMock.Object, 
+            _repoMock.Object,
+            _parserMock.Object,
+            _uninstallServiceMock.Object);
     }
 
     [Fact]
@@ -42,7 +50,7 @@ public class MainViewModelTests
     {
         // Arrange
         var app = new Application { Id = Guid.NewGuid(), Name = "Existing App", IsPresent = true };
-        _repositoryMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        _repoMock.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Application> { app });
 
         // Act
@@ -57,7 +65,7 @@ public class MainViewModelTests
     public async Task ScanCommand_UpdatesStateAndDiscovers()
     {
         // Arrange
-        _discoveryServiceMock.Setup(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()))
+        _discoveryMock.Setup(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DiscoveryResult { ApplicationsDiscovered = 1, ApplicationsAdded = 1 });
 
         // Act
@@ -65,8 +73,8 @@ public class MainViewModelTests
 
         // Assert
         Assert.Equal(DiscoveryState.Completed, _viewModel.State);
-        _discoveryServiceMock.Verify(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _repositoryMock.Verify(r => r.GetAllAsync(It.IsAny<CancellationToken>()), Times.Once); // Once at end of scan
+        _discoveryMock.Verify(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _repoMock.Verify(r => r.GetAllAsync(It.IsAny<CancellationToken>()), Times.Once); // Once at end of scan
     }
 
     [Fact]

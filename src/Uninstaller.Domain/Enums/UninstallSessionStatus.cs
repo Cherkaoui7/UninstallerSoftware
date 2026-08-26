@@ -3,17 +3,12 @@ namespace Uninstaller.Domain.Enums;
 public enum UninstallSessionStatus
 {
     Created,
-    Analyzing,
-    Uninstalling,
-    Scanning,
-    WaitingForConfirmation,
-    BackingUp,
+    Validating,
+    ReadyToExecute,
     Executing,
+    ProcessCompleted,
     Verifying,
     Completed,
     Failed,
-    RollingBack,
-    RolledBack,
-    PartiallyCompleted,
     Cancelled
 }

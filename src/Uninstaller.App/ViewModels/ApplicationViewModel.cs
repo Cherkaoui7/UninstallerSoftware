@@ -27,6 +27,12 @@ public partial class ApplicationViewModel : ObservableObject
     
     public bool IsPresent => _application.IsPresent;
     
+    [ObservableProperty]
+    private bool _isUninstalling;
+
+    [ObservableProperty]
+    private string _uninstallStatus = string.Empty;
+    
     public DateTime LastSeen => _application.LastSeen;
     
     public string? Architecture => _application.Architecture;
