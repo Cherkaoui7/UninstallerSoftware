@@ -26,7 +26,7 @@ public class PersistenceTests
         
         var session = new UninstallSession { Id = Guid.NewGuid(), ApplicationId = appId, Status = UninstallSessionStatus.Created, StartedAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow };
         
-        var artifact = new Artifact { Id = Guid.NewGuid(), SessionId = session.Id, Path = @"C:\Test", Type = ArtifactType.Directory, Classification = ArtifactClassification.SafeCandidate, DiscoveredAt = DateTime.UtcNow };
+        var artifact = new Artifact { Id = Guid.NewGuid(), SessionId = session.Id, Path = @"C:\Test", Type = ArtifactType.Directory, Classification = ArtifactClassification.ApplicationOwned, DiscoveredAt = DateTime.UtcNow };
 
         context.Applications.Add(app);
         context.UninstallSessions.Add(session);

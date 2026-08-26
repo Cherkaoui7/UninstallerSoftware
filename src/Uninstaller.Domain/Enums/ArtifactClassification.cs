@@ -2,10 +2,8 @@ namespace Uninstaller.Domain.Enums;
 
 public enum ArtifactClassification
 {
-    Unknown,
-    SafeCandidate,
+    ApplicationOwned,
+    SharedDependency,
     UserData,
-    SystemComponent,
-    SharedComponent,
-    Unlikely
+    Unknown
 }

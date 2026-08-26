@@ -3,12 +3,12 @@ using Microsoft.Win32;
 
 namespace Uninstaller.Windows.Registry;
 
-internal interface IRegistryProvider
+public interface IRegistryProvider
 {
     IRegistryKeyWrapper? OpenBaseKey(RegistryHive hive, RegistryView view);
 }
 
-internal interface IRegistryKeyWrapper : IDisposable
+public interface IRegistryKeyWrapper : IDisposable
 {
     IRegistryKeyWrapper? OpenSubKey(string name, bool writable);
     string[] GetSubKeyNames();
