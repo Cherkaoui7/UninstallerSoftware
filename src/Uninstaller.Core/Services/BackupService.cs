@@ -136,4 +136,85 @@ public class BackupService : IBackupService
             VerifiedAt = DateTime.UtcNow
         };
     }
+
+    public async Task<Backup> BackupArtifactAsync(CleanupPlanItem item, Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        if (item == null) throw new ArgumentNullException(nameof(item));
+
+        var sessionDirectory = _storage.GetOrCreateSessionDirectory(sessionId);
+        
+        try
+        {
+            if (item.ArtifactType == ArtifactType.Directory || item.ArtifactType == ArtifactType.File || item.ArtifactType == ArtifactType.Shortcut)
+            {
+                return await _fileBackupProvider.BackupFileSystemArtifactAsync(item, sessionDirectory, cancellationToken);
+            }
+            else if (item.ArtifactType == ArtifactType.RegistryKey || item.ArtifactType == ArtifactType.RegistryValue)
+            {
+                return await _registryBackupProvider.BackupRegistryArtifactAsync(item, sessionDirectory, cancellationToken);
+            }
+            else
+            {
+                return new Backup
+                {
+                    SessionId = sessionId,
+                    ArtifactType = item.ArtifactType,
+                    OriginalPath = item.Path,
+                    Status = BackupStatus.Failed,
+                    FailureReason = $"Unsupported artifact type {item.ArtifactType}",
+                    VerificationStatus = BackupVerificationStatus.Failed
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            return new Backup
+            {
+                SessionId = sessionId,
+                ArtifactType = item.ArtifactType,
+                OriginalPath = item.Path,
+                Status = BackupStatus.Failed,
+                FailureReason = ex.Message,
+                VerificationStatus = BackupVerificationStatus.Failed
+            };
+        }
+    }
+
+    public async Task<BackupVerificationResult> VerifyBackupAsync(Backup backup, CancellationToken cancellationToken = default)
+    {
+        if (backup == null) throw new ArgumentNullException(nameof(backup));
+
+        if (backup.Status == BackupStatus.Failed)
+        {
+            return new BackupVerificationResult { IsValid = false, FailureReason = backup.FailureReason };
+        }
+
+        BackupVerificationResult result;
+        if (backup.ArtifactType == ArtifactType.Directory || backup.ArtifactType == ArtifactType.File || backup.ArtifactType == ArtifactType.Shortcut)
+        {
+            result = await _fileBackupProvider.VerifyFileSystemBackupAsync(backup, cancellationToken);
+        }
+        else if (backup.ArtifactType == ArtifactType.RegistryKey || backup.ArtifactType == ArtifactType.RegistryValue)
+        {
+            result = await _registryBackupProvider.VerifyRegistryBackupAsync(backup, cancellationToken);
+        }
+        else
+        {
+            result = new BackupVerificationResult { IsValid = false, FailureReason = "Unsupported type" };
+        }
+
+        if (result.IsValid)
+        {
+            backup.VerificationStatus = BackupVerificationStatus.Verified;
+            backup.Status = BackupStatus.Committed;
+        }
+        else
+        {
+            backup.VerificationStatus = BackupVerificationStatus.Failed;
+            backup.Status = BackupStatus.Failed;
+            backup.FailureReason = result.FailureReason;
+        }
+
+        return result;
+    }
 }

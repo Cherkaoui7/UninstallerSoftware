@@ -4,7 +4,6 @@ using Uninstaller.Domain.Entities;
 
 namespace Uninstaller.Core.Abstractions;
 
-public interface IShortcutCleanupExecutor
+public interface IShortcutCleanupExecutor : ICleanupExecutor
 {
-    Task<CleanupExecutionResult> ExecuteAsync(AuthorizedExecutionContext context, CancellationToken cancellationToken = default);
 }

@@ -91,6 +91,7 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
             _pathResolver.IsPathContainedWithin(item.Path, application.InstallLocation))
         {
             expectedRoot = application.InstallLocation;
+            result.ExpectedRootPath = expectedRoot;
         }
 
         var safety = _pathResolver.ResolveAndVerify(item.Path, expectedRoot);
@@ -165,6 +166,8 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
         }
 
         result.CanonicalPath = item.Path;
+        result.ExpectedRegistryHive = root;
+        result.ExpectedRegistryKeyPath = path;
     }
 
     private void ValidateShortcutArtifact(CleanupPlanItem item, Application application, PreflightValidationResult result)
@@ -206,6 +209,8 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
             Reject(result, PreflightValidationOutcome.StalePlan, "Shortcut target is empty or unreadable.");
             return;
         }
+        
+        result.ExpectedShortcutTarget = target;
 
         var targetSafety = _pathResolver.ResolveAndVerify(target);
         if (targetSafety.IsProtected)

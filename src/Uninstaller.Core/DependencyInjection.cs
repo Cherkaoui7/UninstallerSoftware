@@ -14,6 +14,9 @@ public static class DependencyInjection
         services.AddSingleton<ICommandParser, CommandParser>();
         services.AddScoped<IUninstallService, UninstallService>();
         services.AddScoped<IBackupService, BackupService>();
+        services.AddScoped<IExecutorResolver, ExecutorResolver>();
+        services.AddScoped<IItemExecutionTracker, NoOpItemExecutionTracker>();
+        services.AddScoped<ICleanupTransactionEngine, CleanupTransactionEngine>();
 
         return services;
     }

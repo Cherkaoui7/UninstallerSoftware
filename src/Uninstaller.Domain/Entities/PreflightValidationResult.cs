@@ -17,4 +17,9 @@ public class PreflightValidationResult
     public bool ArtifactStillMatches { get; set; }
     public bool ApplicationStillMatches { get; set; }
     public bool PlanItemStillValid { get; set; }
+    
+    public string ExpectedRootPath { get; set; }
+    public string ExpectedRegistryHive { get; set; }
+    public string ExpectedRegistryKeyPath { get; set; }
+    public string ExpectedShortcutTarget { get; set; }
 }
