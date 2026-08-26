@@ -19,7 +19,7 @@ public class CleanupPlanGeneratorTests
         ArtifactClassification classification, 
         int confidence, 
         bool isProtected, 
-        List<Evidence> evidence = null)
+        List<Evidence>? evidence = null)
     {
         var artifact = new Artifact { Id = Guid.NewGuid(), Type = ArtifactType.Directory, Path = path };
         return new ArtifactAnalysisResult(

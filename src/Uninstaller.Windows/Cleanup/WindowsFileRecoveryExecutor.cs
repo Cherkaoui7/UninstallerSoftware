@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -27,7 +27,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         if (!context.BackupVerificationResult.IsValid)
         {
             result.Outcome = RecoveryOutcome.BackupInvalid;
-            result.FailureReason = ""Backup is not verified."";
+            result.FailureReason = "Backup is not verified.";
             return result;
         }
 
@@ -36,7 +36,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         if (!targetSafety.IsValid || targetSafety.IsProtected)
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = ""Target path is invalid or protected."";
+            result.FailureReason = "Target path is invalid or protected.";
             return result;
         }
 
@@ -47,7 +47,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         if (targetExists)
         {
             result.Outcome = RecoveryOutcome.RecoveryConflict;
-            result.FailureReason = ""Target already exists."";
+            result.FailureReason = "Target already exists.";
             return result;
         }
 
@@ -61,7 +61,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         }
 
         result.Outcome = RecoveryOutcome.ValidationFailed;
-        result.FailureReason = ""Unsupported artifact type."";
+        result.FailureReason = "Unsupported artifact type.";
         return result;
     }
 
@@ -70,13 +70,13 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         if (!File.Exists(context.BackupPath))
         {
             result.Outcome = RecoveryOutcome.BackupInvalid;
-            result.FailureReason = ""Backup file not found."";
+            result.FailureReason = "Backup file not found.";
             return result;
         }
 
-        string stagingDir = Path.Combine(_backupStorage.GetBackupRoot(), ""Staging"");
+        string stagingDir = Path.Combine(_backupStorage.GetBackupRoot(), "Staging");
         Directory.CreateDirectory(stagingDir);
-        string stagingFile = Path.Combine(stagingDir, Guid.NewGuid().ToString() + "".tmp"");
+        string stagingFile = Path.Combine(stagingDir, Guid.NewGuid().ToString() + ".tmp");
 
         try
         {
@@ -88,7 +88,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
             if (!string.Equals(stagedHash, context.ExpectedHash, StringComparison.OrdinalIgnoreCase))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Staged file hash mismatch."";
+                result.FailureReason = "Staged file hash mismatch.";
                 return result;
             }
 
@@ -96,7 +96,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
             if (File.Exists(context.OriginalCanonicalPath))
             {
                 result.Outcome = RecoveryOutcome.RecoveryConflict;
-                result.FailureReason = ""Target appeared during staging."";
+                result.FailureReason = "Target appeared during staging.";
                 return result;
             }
 
@@ -113,7 +113,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
             if (!File.Exists(context.OriginalCanonicalPath))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""File does not exist after placement."";
+                result.FailureReason = "File does not exist after placement.";
                 return result;
             }
 
@@ -121,7 +121,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
             if (!string.Equals(finalHash, context.ExpectedHash, StringComparison.OrdinalIgnoreCase))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Final file hash mismatch."";
+                result.FailureReason = "Final file hash mismatch.";
                 return result;
             }
 
@@ -167,7 +167,7 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         if (Directory.Exists(context.OriginalCanonicalPath))
         {
             result.Outcome = RecoveryOutcome.RecoveryConflict;
-            result.FailureReason = ""Target directory already exists."";
+            result.FailureReason = "Target directory already exists.";
             return result;
         }
 
@@ -196,6 +196,6 @@ public class WindowsFileRecoveryExecutor : IFileRecoveryExecutor
         using var stream = File.OpenRead(path);
         using var sha = SHA256.Create();
         var hash = await sha.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hash).Replace(""-"", """").ToLowerInvariant();
+        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 }

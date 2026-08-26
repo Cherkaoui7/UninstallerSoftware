@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Security;
@@ -13,7 +13,7 @@ namespace Uninstaller.Windows.Cleanup;
 
 public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
 {
-    private static readonly string[] ProtectedRoots = { ""hkcr"", ""hklm\\software\\classes"", ""hklm\\system"", ""hklm\\sam"", ""hklm\\hardware"" };
+    private static readonly string[] ProtectedRoots = { "hkcr", "hklm\\software\\classes", "hklm\\system", "hklm\\sam", "hklm\\hardware" };
 
     public Task<RecoveryResult> ExecuteAsync(RecoveryContext context, CancellationToken cancellationToken = default)
     {
@@ -22,14 +22,14 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         if (!context.BackupVerificationResult.IsValid)
         {
             result.Outcome = RecoveryOutcome.BackupInvalid;
-            result.FailureReason = ""Backup verification failed."";
+            result.FailureReason = "Backup verification failed.";
             return Task.FromResult(result);
         }
 
         if (string.IsNullOrEmpty(context.ExpectedRegistryHive) || string.IsNullOrEmpty(context.ExpectedRegistryKeyPath))
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = ""Missing ExpectedRegistryHive or ExpectedRegistryKeyPath."";
+            result.FailureReason = "Missing ExpectedRegistryHive or ExpectedRegistryKeyPath.";
             return Task.FromResult(result);
         }
 
@@ -39,7 +39,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         string valueName = null;
         if (context.ArtifactType == ArtifactType.RegistryValue)
         {
-            var parts = context.OriginalCanonicalPath.Split(""::"");
+            var parts = context.OriginalCanonicalPath.Split("::");
             if (parts.Length == 2)
             {
                 keyString = parts[0];
@@ -50,15 +50,15 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
                 // In recovery context, OriginalCanonicalPath might just be the path. 
                 // Let's rely on ExpectedRegistryKeyPath being the key.
                 // Wait, if ExpectedRegistryKeyPath is just the key, where's the value name?
-                // Let's extract it from OriginalCanonicalPath if it has ""
-                if (context.OriginalCanonicalPath.Contains(""::""))
+                // Let's extract it from OriginalCanonicalPath if it has "
+                if (context.OriginalCanonicalPath.Contains("::"))
                 {
-                    valueName = context.OriginalCanonicalPath.Split(""::"")[1];
+                    valueName = context.OriginalCanonicalPath.Split("::")[1];
                 }
                 else
                 {
                     // Fallback, valueName must be somewhere. 
-                    valueName = """";
+                    valueName = "";
                 }
             }
         }
@@ -68,7 +68,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         if (ProtectedRoots.Any(pr => pr.Equals(subKeyLower, StringComparison.OrdinalIgnoreCase)))
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = ""Target is a protected registry root."";
+            result.FailureReason = "Target is a protected registry root.";
             return Task.FromResult(result);
         }
 
@@ -76,7 +76,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         if (baseKey == null)
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = $""Unsupported hive: {hiveString}"";
+            result.FailureReason = $"Unsupported hive: {hiveString}";
             return Task.FromResult(result);
         }
 
@@ -88,7 +88,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
                 if (checkKey != null)
                 {
                     result.Outcome = RecoveryOutcome.RecoveryConflict;
-                    result.FailureReason = ""Registry key already exists."";
+                    result.FailureReason = "Registry key already exists.";
                     return Task.FromResult(result);
                 }
 
@@ -103,24 +103,24 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
                 if (key == null)
                 {
                     result.Outcome = RecoveryOutcome.Failed;
-                    result.FailureReason = ""Parent registry key for value not found."";
+                    result.FailureReason = "Parent registry key for value not found.";
                     return Task.FromResult(result);
                 }
 
                 if (key.GetValue(valueName) != null)
                 {
                     result.Outcome = RecoveryOutcome.RecoveryConflict;
-                    result.FailureReason = ""Registry value already exists."";
+                    result.FailureReason = "Registry value already exists.";
                     return Task.FromResult(result);
                 }
 
-                // Actually write the value based on backup (dummy ""RestoredValue"" for now).
-                key.SetValue(valueName, ""RestoredValue"");
+                // Actually write the value based on backup (dummy "RestoredValue" for now).
+                key.SetValue(valueName, "RestoredValue");
             }
             else
             {
                 result.Outcome = RecoveryOutcome.ValidationFailed;
-                result.FailureReason = $""Unsupported artifact type for registry executor: {context.ArtifactType}"";
+                result.FailureReason = $"Unsupported artifact type for registry executor: {context.ArtifactType}";
                 return Task.FromResult(result);
             }
         }
@@ -165,7 +165,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         if (!stillExists)
         {
             result.Outcome = RecoveryOutcome.VerificationFailed;
-            result.FailureReason = ""Registry artifact does not exist after restoration attempt."";
+            result.FailureReason = "Registry artifact does not exist after restoration attempt.";
         }
         else
         {
@@ -179,11 +179,11 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
     {
         return root.ToUpperInvariant() switch
         {
-            ""HKEY_CLASSES_ROOT"" or ""HKCR"" => Microsoft.Win32.Registry.ClassesRoot,
-            ""HKEY_CURRENT_USER"" or ""HKCU"" => Microsoft.Win32.Registry.CurrentUser,
-            ""HKEY_LOCAL_MACHINE"" or ""HKLM"" => Microsoft.Win32.Registry.LocalMachine,
-            ""HKEY_USERS"" or ""HKU"" => Microsoft.Win32.Registry.Users,
-            ""HKEY_CURRENT_CONFIG"" or ""HKCC"" => Microsoft.Win32.Registry.CurrentConfig,
+            "HKEY_CLASSES_ROOT" or "HKCR" => Microsoft.Win32.Registry.ClassesRoot,
+            "HKEY_CURRENT_USER" or "HKCU" => Microsoft.Win32.Registry.CurrentUser,
+            "HKEY_LOCAL_MACHINE" or "HKLM" => Microsoft.Win32.Registry.LocalMachine,
+            "HKEY_USERS" or "HKU" => Microsoft.Win32.Registry.Users,
+            "HKEY_CURRENT_CONFIG" or "HKCC" => Microsoft.Win32.Registry.CurrentConfig,
             _ => null
         };
     }

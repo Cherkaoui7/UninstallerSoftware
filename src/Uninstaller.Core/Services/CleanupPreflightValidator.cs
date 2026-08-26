@@ -86,7 +86,7 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
 
     private void ValidateFileSystemArtifact(CleanupPlanItem item, Application application, PreflightValidationResult result)
     {
-        string expectedRoot = null;
+        string? expectedRoot = null;
         if (!string.IsNullOrWhiteSpace(application.InstallLocation) && 
             _pathResolver.IsPathContainedWithin(item.Path, application.InstallLocation))
         {

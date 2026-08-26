@@ -495,3 +495,6 @@ cache/
 *.user
 *.suo
 .idea/
+
+# Local .NET SDK
+.dotnet/

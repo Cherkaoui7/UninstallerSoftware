@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -37,14 +37,14 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
         if (!context.BackupVerificationResult.IsValid)
         {
             result.Outcome = RecoveryOutcome.BackupInvalid;
-            result.FailureReason = ""Backup verification failed."";
+            result.FailureReason = "Backup verification failed.";
             return result;
         }
 
         if (context.ArtifactType != ArtifactType.Shortcut)
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = $""Unsupported artifact type for shortcut executor: {context.ArtifactType}"";
+            result.FailureReason = $"Unsupported artifact type for shortcut executor: {context.ArtifactType}";
             return result;
         }
 
@@ -52,41 +52,41 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
         if (!targetSafety.IsValid)
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = $""Target path is invalid: {targetSafety.Reason}"";
+            result.FailureReason = $"Target path is invalid: {targetSafety.Reason}";
             return result;
         }
 
         if (targetSafety.IsProtected)
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = ""Target path is protected."";
+            result.FailureReason = "Target path is protected.";
             return result;
         }
 
-        if (!targetSafety.CanonicalPath.EndsWith("".lnk"", StringComparison.OrdinalIgnoreCase))
+        if (!targetSafety.CanonicalPath.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
         {
             result.Outcome = RecoveryOutcome.ValidationFailed;
-            result.FailureReason = ""Target does not have a .lnk extension."";
+            result.FailureReason = "Target does not have a .lnk extension.";
             return result;
         }
 
         if (File.Exists(targetSafety.CanonicalPath))
         {
             result.Outcome = RecoveryOutcome.RecoveryConflict;
-            result.FailureReason = ""Shortcut already exists at the target path."";
+            result.FailureReason = "Shortcut already exists at the target path.";
             return result;
         }
 
         if (!File.Exists(context.BackupPath))
         {
             result.Outcome = RecoveryOutcome.BackupInvalid;
-            result.FailureReason = ""Backup file not found."";
+            result.FailureReason = "Backup file not found.";
             return result;
         }
 
-        string stagingDir = Path.Combine(_backupStorage.GetBackupRoot(), ""Staging"");
+        string stagingDir = Path.Combine(_backupStorage.GetBackupRoot(), "Staging");
         Directory.CreateDirectory(stagingDir);
-        string stagingFile = Path.Combine(stagingDir, Guid.NewGuid().ToString() + "".lnk""); // Must have .lnk for WScript to parse it
+        string stagingFile = Path.Combine(stagingDir, Guid.NewGuid().ToString() + ".lnk"); // Must have .lnk for WScript to parse it
 
         try
         {
@@ -98,7 +98,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (!string.Equals(stagedHash, context.ExpectedHash, StringComparison.OrdinalIgnoreCase))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Staged file hash mismatch."";
+                result.FailureReason = "Staged file hash mismatch.";
                 return result;
             }
 
@@ -107,7 +107,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (liveInfo == null)
             {
                 result.Outcome = RecoveryOutcome.ValidationFailed;
-                result.FailureReason = ""Failed to read shortcut metadata from staged file."";
+                result.FailureReason = "Failed to read shortcut metadata from staged file.";
                 return result;
             }
 
@@ -117,7 +117,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
                 if (!string.Equals(liveTarget, context.ExpectedShortcutTarget, StringComparison.OrdinalIgnoreCase))
                 {
                     result.Outcome = RecoveryOutcome.ValidationFailed;
-                    result.FailureReason = $""Shortcut target mismatch. Expected: '{context.ExpectedShortcutTarget}', Actual: '{liveTarget}'."";
+                    result.FailureReason = $"Shortcut target mismatch. Expected: '{context.ExpectedShortcutTarget}', Actual: '{liveTarget}'.";
                     return result;
                 }
             }
@@ -126,7 +126,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (File.Exists(targetSafety.CanonicalPath))
             {
                 result.Outcome = RecoveryOutcome.RecoveryConflict;
-                result.FailureReason = ""Target shortcut appeared during staging."";
+                result.FailureReason = "Target shortcut appeared during staging.";
                 return result;
             }
 
@@ -143,7 +143,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (!File.Exists(targetSafety.CanonicalPath))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Shortcut does not exist after placement."";
+                result.FailureReason = "Shortcut does not exist after placement.";
                 return result;
             }
 
@@ -151,7 +151,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (!string.Equals(finalHash, context.ExpectedHash, StringComparison.OrdinalIgnoreCase))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Final file hash mismatch."";
+                result.FailureReason = "Final file hash mismatch.";
                 return result;
             }
 
@@ -160,7 +160,7 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
             if (finalInfo == null || (!string.IsNullOrEmpty(context.ExpectedShortcutTarget) && !string.Equals(finalInfo.TargetPath, context.ExpectedShortcutTarget, StringComparison.OrdinalIgnoreCase)))
             {
                 result.Outcome = RecoveryOutcome.VerificationFailed;
-                result.FailureReason = ""Shortcut metadata drifted after placement."";
+                result.FailureReason = "Shortcut metadata drifted after placement.";
                 return result;
             }
 
@@ -199,6 +199,6 @@ public class WindowsShortcutRecoveryExecutor : IShortcutRecoveryExecutor
         using var stream = File.OpenRead(path);
         using var sha = SHA256.Create();
         var hash = await sha.ComputeHashAsync(stream, cancellationToken);
-        return BitConverter.ToString(hash).Replace(""-"", """").ToLowerInvariant();
+        return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
     }
 }

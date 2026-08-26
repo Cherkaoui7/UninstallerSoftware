@@ -42,7 +42,7 @@ public class BackupService : IBackupService
         {
             if (!item.Recommended) continue; // Only backup recommended items for now, or maybe all items? Let's backup items we are planning to clean.
 
-            Backup backup = null;
+            Backup? backup = null;
             try
             {
                 if (item.ArtifactType == ArtifactType.Directory || item.ArtifactType == ArtifactType.File || item.ArtifactType == ArtifactType.Shortcut)

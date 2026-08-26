@@ -5,6 +5,6 @@ namespace Uninstaller.Core.Abstractions;
 
 public interface ICanonicalPathResolver
 {
-    PathSafetyResult ResolveAndVerify(string path, string expectedRoot = null, CancellationToken cancellationToken = default);
+    PathSafetyResult ResolveAndVerify(string path, string? expectedRoot = null, CancellationToken cancellationToken = default);
     bool IsPathContainedWithin(string path, string rootPath);
 }
