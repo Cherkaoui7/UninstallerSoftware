@@ -8,4 +8,5 @@ namespace Uninstaller.Core.Abstractions;
 public interface IRegistryService
 {
     Task<IReadOnlyList<RawRegistryApplication>> GetUninstallEntriesAsync(CancellationToken cancellationToken);
+    bool KeyExists(string root, string path);
 }

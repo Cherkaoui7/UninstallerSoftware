@@ -145,4 +145,21 @@ public class WindowsRegistryService : IRegistryService
         if (val is string s && int.TryParse(s, out var parsed)) return parsed;
         return null;
     }
+
+    public bool KeyExists(string root, string path)
+    {
+        try
+        {
+            if (!Enum.TryParse<RegistryHive>(root, out var hive)) return false;
+            
+            using var baseKey = _registryProvider.OpenBaseKey(hive, RegistryView.Default);
+            if (baseKey == null) return false;
+            using var subKey = baseKey.OpenSubKey(path, writable: false);
+            return subKey != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

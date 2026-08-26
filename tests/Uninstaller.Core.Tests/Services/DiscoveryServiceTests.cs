@@ -147,6 +147,8 @@ public class DiscoveryServiceTests
         private readonly List<RawRegistryApplication>? _entries;
         private readonly Exception? _exceptionToThrow;
 
+        public bool KeyExists(string root, string path) => true;
+
         public FakeRegistryService(List<RawRegistryApplication> entries) => _entries = entries;
         public FakeRegistryService(Exception ex) => _exceptionToThrow = ex;
 
@@ -165,6 +167,23 @@ public class DiscoveryServiceTests
         private readonly int _updated;
         private readonly int _unchanged;
         private readonly Exception? _exceptionToThrow;
+        private class FakeFileSystemService : IFileSystemService
+        {
+            public bool FileExists(string path) => true;
+            public bool DirectoryExists(string path) => true;
+
+            public IEnumerable<string> FindDirectories(string rootPath, string searchTerm)
+            {
+                if (rootPath == @"C:\Program Files")
+                    return new List<string> { @"C:\Program Files\Test App" };
+                return Enumerable.Empty<string>();
+            }
+
+            public IEnumerable<string> FindFiles(string rootPath, string searchTerm)
+            {
+                return Enumerable.Empty<string>();
+            }
+        }
         public bool SyncCalled { get; private set; }
 
         public FakeApplicationRepository(int added, int updated, int unchanged)
