@@ -11,6 +11,7 @@ using Uninstaller.Domain.Enums;
 
 namespace Uninstaller.Windows.Cleanup;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
 {
     private static readonly string[] ProtectedRoots = { "hkcr", "hklm\\software\\classes", "hklm\\system", "hklm\\sam", "hklm\\hardware" };
@@ -36,7 +37,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         string hiveString = context.ExpectedRegistryHive;
         string keyString = context.ExpectedRegistryKeyPath;
         
-        string valueName = null;
+        string? valueName = null;
         if (context.ArtifactType == ArtifactType.RegistryValue)
         {
             var parts = context.OriginalCanonicalPath.Split("::");
@@ -175,7 +176,7 @@ public class WindowsRegistryRecoveryExecutor : IRegistryRecoveryExecutor
         return Task.FromResult(result);
     }
 
-    private RegistryKey GetBaseKey(string root)
+    private RegistryKey? GetBaseKey(string root)
     {
         return root.ToUpperInvariant() switch
         {

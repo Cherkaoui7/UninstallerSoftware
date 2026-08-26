@@ -10,6 +10,7 @@ using Uninstaller.Domain.Enums;
 
 namespace Uninstaller.Windows.Cleanup;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
 {
     private static readonly string[] ProtectedRoots = new[]
@@ -62,7 +63,7 @@ public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
         {
             // Normalize hive aliases to a canonical short form for comparison
             var resolvedHive = NormalizeHive(hiveString);
-            var expectedHive = NormalizeHive(context.ExpectedRegistryHive);
+            var expectedHive = NormalizeHive(context.ExpectedRegistryHive ?? string.Empty);
 
             if (!string.Equals(resolvedHive, expectedHive, StringComparison.OrdinalIgnoreCase))
             {
@@ -222,7 +223,7 @@ public class WindowsRegistryCleanupExecutor : IRegistryCleanupExecutor
         return Task.FromResult(result);
     }
 
-    private RegistryKey GetBaseKey(string root)
+    private RegistryKey? GetBaseKey(string root)
     {
         return root.ToUpperInvariant() switch
         {

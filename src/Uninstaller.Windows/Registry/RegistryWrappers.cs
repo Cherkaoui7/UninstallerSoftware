@@ -15,6 +15,7 @@ public interface IRegistryKeyWrapper : IDisposable
     object? GetValue(string name);
 }
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 internal class RegistryProvider : IRegistryProvider
 {
     public IRegistryKeyWrapper? OpenBaseKey(RegistryHive hive, RegistryView view)
@@ -24,6 +25,7 @@ internal class RegistryProvider : IRegistryProvider
     }
 }
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 internal class RegistryKeyWrapper : IRegistryKeyWrapper
 {
     private readonly RegistryKey _key;

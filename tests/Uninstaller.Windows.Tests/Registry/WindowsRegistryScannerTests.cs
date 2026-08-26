@@ -13,6 +13,7 @@ using Xunit;
 
 namespace Uninstaller.Windows.Tests.Registry;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class WindowsRegistryScannerTests
 {
     private readonly Mock<IRegistryProvider> _providerMock;

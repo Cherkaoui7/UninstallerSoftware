@@ -6,9 +6,11 @@ using Uninstaller.Windows.Processes;
 using Uninstaller.Windows.Registry;
 using Uninstaller.Windows.Services;
 using Uninstaller.Windows.Tasks;
+using Uninstaller.Windows.Backup;
 
 namespace Uninstaller.Windows;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public static class DependencyInjection
 {
     public static IServiceCollection AddWindows(this IServiceCollection services)
@@ -22,9 +24,9 @@ public static class DependencyInjection
         services.AddSingleton<IFileCleanupExecutor, WindowsFileCleanupExecutor>();
         services.AddSingleton<IRegistryCleanupExecutor, WindowsRegistryCleanupExecutor>();
         services.AddSingleton<IShortcutCleanupExecutor, WindowsShortcutCleanupExecutor>();
-        services.AddSingleton<IBackupStorage, Uninstaller.Windows.Backups.WindowsBackupStorage>();
-        services.AddTransient<IFileBackupProvider, Uninstaller.Windows.Backups.WindowsFileBackupProvider>();
-        services.AddTransient<IRegistryBackupProvider, Uninstaller.Windows.Backups.WindowsRegistryBackupProvider>();
+        services.AddSingleton<IBackupStorage, WindowsBackupStorage>();
+        services.AddTransient<IFileBackupProvider, WindowsFileBackupProvider>();
+        services.AddTransient<IRegistryBackupProvider, WindowsRegistryBackupProvider>();
         return services;
     }
 }

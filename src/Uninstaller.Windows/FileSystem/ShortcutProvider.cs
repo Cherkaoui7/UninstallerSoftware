@@ -22,6 +22,7 @@ public class ShortcutInfo
 // We use a dummy implementation here that assumes the caller will use COM, but since we are strictly
 // enforcing domain logic and testability, we just return empty or simulated for the sake of the exercise
 // if COM isn't available, or we could use Type.GetTypeFromProgID("WScript.Shell").
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class ShortcutProvider : IShortcutProvider
 {
     private readonly IFileSystem _fileSystem;

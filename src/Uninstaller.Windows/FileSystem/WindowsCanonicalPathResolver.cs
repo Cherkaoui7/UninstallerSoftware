@@ -81,7 +81,7 @@ public class WindowsCanonicalPathResolver : ICanonicalPathResolver
         return normalizedPath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
     }
 
-    public PathSafetyResult ResolveAndVerify(string path, string expectedRoot = null, CancellationToken cancellationToken = default)
+    public PathSafetyResult ResolveAndVerify(string path, string? expectedRoot = null, CancellationToken cancellationToken = default)
     {
         var result = new PathSafetyResult
         {
@@ -91,7 +91,7 @@ public class WindowsCanonicalPathResolver : ICanonicalPathResolver
             IsReparsePoint = false,
             IsWithinExpectedRoot = false,
             Reason = string.Empty,
-            CanonicalPath = null
+            CanonicalPath = string.Empty
         };
 
         if (string.IsNullOrWhiteSpace(path))

@@ -10,6 +10,7 @@ using Xunit;
 
 namespace Uninstaller.Windows.Tests.Cleanup;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class WindowsRegistryCleanupExecutorTests : IDisposable
 {
     private readonly WindowsRegistryCleanupExecutor _executor;
