@@ -176,7 +176,11 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Executing);
             try
             {
-                var execResult = await executor.ExecuteAsync(context, cancellationToken);
+                // CRITICAL: We pass CancellationToken.None here.
+                // A cancellation arriving during an executor operation must not cause the engine
+                // to report Cancelled before recording the actual mutation result.
+                // The current operation must finish/verify, then the engine will stop starting additional items.
+                var execResult = await executor.ExecuteAsync(context, CancellationToken.None);
                 result.Results.Add(execResult);
                 
                 await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Verifying);
@@ -193,17 +197,6 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
                     await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
                     result.FailureCount++;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning("Execution of item {ItemId} was cancelled midway.", item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Cancelled);
-                executionResult.Outcome = CleanupOutcome.DeleteFailed;
-                executionResult.FailureReason = "Operation was cancelled.";
-                result.Results.Add(executionResult);
-                result.FailureCount++;
-                result.Status = CleanupSessionStatus.Cancelled;
-                break;
             }
             catch (Exception ex)
             {

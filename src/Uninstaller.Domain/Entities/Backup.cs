@@ -14,6 +14,9 @@ public class Backup
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public long? Size { get; set; }
     public string? Hash { get; set; }
+    public string? ExpectedRegistryHive { get; set; }
+    public string? ExpectedRegistryKeyPath { get; set; }
+    public string? ExpectedShortcutTarget { get; set; }
     public BackupStatus Status { get; set; }
     public BackupVerificationStatus VerificationStatus { get; set; }
     public string? FailureReason { get; set; }

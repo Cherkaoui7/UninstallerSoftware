@@ -10,4 +10,5 @@ public interface IBackupService
     Task<BackupVerificationResult> VerifyBackupManifestAsync(BackupManifest manifest, CancellationToken cancellationToken = default);
     Task<Backup> BackupArtifactAsync(CleanupPlanItem item, Guid sessionId, CancellationToken cancellationToken = default);
     Task<BackupVerificationResult> VerifyBackupAsync(Backup backup, CancellationToken cancellationToken = default);
+    Task<Backup?> GetBackupAsync(Guid backupId, CancellationToken cancellationToken = default);
 }
