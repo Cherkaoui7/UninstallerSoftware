@@ -313,7 +313,7 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
         File.WriteAllBytes(lnk, Array.Empty<byte>());
 
         SetupSafePathResolver(lnk);
-        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns(new ShortcutInfo { TargetPath = "" });
 
         var result = await _executor.ExecuteAsync(CreateContext(lnk, expectedTarget: ""));
 
@@ -333,7 +333,7 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
         var neighbor2  = CreateFakeLnk("Neighbor2.lnk");
 
         SetupSafePathResolver(authorized);
-        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns(new ShortcutInfo { TargetPath = "" });
 
         var result = await _executor.ExecuteAsync(CreateContext(authorized, expectedTarget: ""));
 
@@ -368,7 +368,7 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
     {
         var lnk = CreateFakeLnk("FinalVal.lnk");
         SetupSafePathResolver(lnk);
-        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns(new ShortcutInfo { TargetPath = "" });
 
         var result = await _executor.ExecuteAsync(CreateContext(lnk, expectedTarget: ""));
 
@@ -403,7 +403,7 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
     {
         var lnk = CreateFakeLnk("NoRegistry.lnk");
         SetupSafePathResolver(lnk);
-        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns(new ShortcutInfo { TargetPath = "" });
 
         var result = await _executor.ExecuteAsync(CreateContext(lnk, expectedTarget: ""));
 
@@ -419,7 +419,7 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
     {
         var lnk = CreateFakeLnk("Flags.lnk");
         SetupSafePathResolver(lnk);
-        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns(new ShortcutInfo { TargetPath = "" });
 
         var result = await _executor.ExecuteAsync(CreateContext(lnk, expectedTarget: ""));
 
@@ -427,5 +427,23 @@ public sealed class WindowsShortcutCleanupExecutorTests : IDisposable
         result.WasBackupVerified.Should().BeTrue();
         result.WasFinalValidationPerformed.Should().BeTrue();
         result.RequiresReboot.Should().BeFalse();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 19. Cannot read shortcut metadata (Fail-closed)
+    // ══════════════════════════════════════════════════════════════════════════
+    [Fact]
+    public async Task ExecuteAsync_CannotReadMetadata_RejectsWithValidationFailed()
+    {
+        var lnk = CreateFakeLnk("Unreadable.lnk");
+        SetupSafePathResolver(lnk);
+        _shortcutProviderMock.Setup(s => s.GetShortcutInfo(It.IsAny<string>())).Returns((ShortcutInfo?)null);
+
+        var result = await _executor.ExecuteAsync(CreateContext(lnk, expectedTarget: ""));
+
+        result.Success.Should().BeFalse();
+        result.Outcome.Should().Be(CleanupOutcome.ValidationFailed);
+        result.FailureReason.ToLowerInvariant().Should().Contain("read shortcut metadata");
+        File.Exists(lnk).Should().BeTrue("no deletion occurs if metadata is unreadable");
     }
 }

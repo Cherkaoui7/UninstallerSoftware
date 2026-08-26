@@ -105,12 +105,17 @@ public class WindowsShortcutCleanupExecutor : IShortcutCleanupExecutor
             return Task.FromResult(result);
         }
 
-        // The resolved canonical path must be byte-for-byte the same as what was
-        // recorded in the context.  Any drift means the filesystem has changed.
-        if (!string.Equals(safety.CanonicalPath, context.CanonicalPath, StringComparison.OrdinalIgnoreCase))
+        // ── 4.1. Canonical path identity assertion ──────────────────────────────
+        // The resolved canonical path must semantically represent the same path as what
+        // was authorized. A case-insensitive, normalized comparison prevents fragile
+        // string formatting failures while ensuring security identity.
+        var normalizedSafetyPath = Path.GetFullPath(safety.CanonicalPath).TrimEnd('\\');
+        var normalizedContextPath = Path.GetFullPath(context.CanonicalPath).TrimEnd('\\');
+
+        if (!string.Equals(normalizedSafetyPath, normalizedContextPath, StringComparison.OrdinalIgnoreCase))
         {
             result.Outcome = CleanupOutcome.IdentityMismatch;
-            result.FailureReason = "Canonical shortcut path changed between authorization and execution.";
+            result.FailureReason = "Canonical shortcut path drifted between authorization and execution.";
             return Task.FromResult(result);
         }
 
@@ -133,14 +138,23 @@ public class WindowsShortcutCleanupExecutor : IShortcutCleanupExecutor
         }
 
         // ── 7. Target identity assertion ──────────────────────────────────────
+        // We ALWAYS read the live shortcut metadata. If we cannot read it (e.g. COM failure
+        // or malformed .lnk), we fail closed rather than assuming it's safe to delete.
+        var liveInfo = _shortcutProvider.GetShortcutInfo(safety.CanonicalPath);
+        if (liveInfo == null)
+        {
+            result.Outcome = CleanupOutcome.ValidationFailed;
+            result.FailureReason = "Failed to read shortcut metadata. Refusing to delete unknown shortcut.";
+            return Task.FromResult(result);
+        }
+
         // Re-read the live shortcut metadata and assert the target matches what was
         // authorized at preflight time.  A changed target means a different application
         // now owns this .lnk file — reject with IdentityMismatch rather than deleting
         // the wrong application's shortcut.
         if (!string.IsNullOrEmpty(context.ExpectedShortcutTarget))
         {
-            var liveInfo = _shortcutProvider.GetShortcutInfo(safety.CanonicalPath);
-            var liveTarget = liveInfo?.TargetPath ?? string.Empty;
+            var liveTarget = liveInfo.TargetPath ?? string.Empty;
 
             if (!string.Equals(liveTarget, context.ExpectedShortcutTarget, StringComparison.OrdinalIgnoreCase))
             {
