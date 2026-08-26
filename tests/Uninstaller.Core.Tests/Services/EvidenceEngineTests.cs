@@ -41,7 +41,6 @@ public class EvidenceEngineTests
 
         Assert.True(result.IsProtected);
         Assert.Equal(ArtifactClassification.UserData, result.Classification);
-        Assert.True(result.ConfidenceScore <= 39); // Cap
     }
 
     [Fact]

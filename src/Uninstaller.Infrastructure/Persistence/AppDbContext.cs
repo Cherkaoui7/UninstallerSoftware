@@ -11,6 +11,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<Operation> Operations => Set<Operation>();
     public DbSet<Backup> Backups => Set<Backup>();
     public DbSet<LogEntry> Logs => Set<LogEntry>();
+    public DbSet<CleanupPlan> CleanupPlans => Set<CleanupPlan>();
+    public DbSet<CleanupPlanItem> CleanupPlanItems => Set<CleanupPlanItem>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -61,5 +63,29 @@ public sealed class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(l => l.SessionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CleanupPlan>()
+            .HasOne<UninstallSession>()
+            .WithMany()
+            .HasForeignKey(p => p.UninstallSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CleanupPlan>()
+            .OwnsOne(p => p.Summary, s =>
+            {
+                s.ToJson();
+            });
+
+        modelBuilder.Entity<CleanupPlanItem>()
+            .HasOne<CleanupPlan>()
+            .WithMany(p => p.Items)
+            .HasForeignKey(i => i.CleanupPlanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<CleanupPlanItem>()
+            .OwnsMany(i => i.Evidence, e =>
+            {
+                e.ToJson();
+            });
     }
 }

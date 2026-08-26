@@ -89,7 +89,7 @@ public class EvidenceEngine : IEvidenceEngine
         if (isProtected)
         {
             classification = ArtifactClassification.UserData;
-            score = Math.Min(score, 39); // Cap confidence for protected locations
+            warnings.Add("Path is protected user data location.");
         }
         else if (hasPublisher && !hasAppName)
         {

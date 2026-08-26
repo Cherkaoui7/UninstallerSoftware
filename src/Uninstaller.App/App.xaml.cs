@@ -23,8 +23,8 @@ public partial class App : Application
                 services.AddCore();
                 services.AddInfrastructure();
                 services.AddWindows();
-                services.AddSingleton<ViewModels.MainViewModel>();
-                services.AddSingleton<MainWindow>();
+                services.AddTransient<ViewModels.MainViewModel>();
+                services.AddTransient<MainWindow>();
             })
             .Build();
     }
