@@ -164,6 +164,7 @@ public class BackupService : IBackupService
                     FailureReason = $"Unsupported artifact type {item.ArtifactType}",
                     VerificationStatus = BackupVerificationStatus.Failed
                 };
+            }
         }
         catch (Exception ex)
         {
@@ -216,7 +217,7 @@ public class BackupService : IBackupService
 
         return result;
     }
-    }
+}
 
     public Task<Backup?> GetBackupAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
