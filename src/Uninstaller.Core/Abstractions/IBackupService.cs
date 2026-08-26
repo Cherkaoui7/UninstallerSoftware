@@ -1,6 +1,11 @@
+using System.Threading;
+using System.Threading.Tasks;
+using Uninstaller.Domain.Entities;
+
 namespace Uninstaller.Core.Abstractions;
 
 public interface IBackupService
 {
-    // Phase 0 setup
+    Task<BackupManifest> CreateBackupManifestAsync(CleanupPlan plan, CancellationToken cancellationToken = default);
+    Task<BackupVerificationResult> VerifyBackupManifestAsync(BackupManifest manifest, CancellationToken cancellationToken = default);
 }

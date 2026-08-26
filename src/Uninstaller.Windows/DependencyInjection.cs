@@ -18,6 +18,10 @@ public static class DependencyInjection
         services.AddTransient<IServiceManager, WindowsServiceManager>();
         services.AddTransient<ITaskScheduler, WindowsTaskScheduler>();
         services.AddTransient<IProcessExecutor, WindowsProcessExecutor>();
+        services.AddSingleton<IBackupStorage, Uninstaller.Windows.Backups.WindowsBackupStorage>();
+        services.AddTransient<IFileBackupProvider, Uninstaller.Windows.Backups.WindowsFileBackupProvider>();
+        services.AddTransient<IRegistryBackupProvider, Uninstaller.Windows.Backups.WindowsRegistryBackupProvider>();
+        services.AddTransient<IFileCleanupExecutor, Uninstaller.Windows.Cleanup.WindowsFileCleanupExecutor>();
         return services;
     }
 }

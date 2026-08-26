@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddScoped<IDiscoveryService, DiscoveryService>();
         services.AddSingleton<ICommandParser, CommandParser>();
         services.AddScoped<IUninstallService, UninstallService>();
+        services.AddScoped<IBackupService, BackupService>();
 
         return services;
     }

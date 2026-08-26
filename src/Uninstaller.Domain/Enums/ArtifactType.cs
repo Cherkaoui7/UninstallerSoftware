@@ -10,5 +10,6 @@ public enum ArtifactType
     Shortcut,
     StartupEntry,
     EnvironmentVariable,
+    RegistryValue,
     Other
 }
