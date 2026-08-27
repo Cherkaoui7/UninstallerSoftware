@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Uninstaller.App.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Domain.Entities;
 using Uninstaller.Domain.Enums;
@@ -15,7 +16,7 @@ namespace Uninstaller.App.ViewModels;
 public partial class CleanupPlanViewModel : ViewModelBase
 {
     private readonly INavigationService _navigationService;
-    private readonly ICleanupTransactionEngine _transactionEngine;
+    private readonly IServiceProvider _serviceProvider;
     private readonly CleanupPlan _plan;
     private readonly Application _application;
 
@@ -23,13 +24,13 @@ public partial class CleanupPlanViewModel : ViewModelBase
         CleanupPlan plan,
         Application application,
         INavigationService navigationService,
-        ICleanupTransactionEngine transactionEngine,
+        IServiceProvider serviceProvider,
         IErrorBoundaryService errorBoundary) : base(errorBoundary)
     {
         _plan = plan;
         _application = application;
         _navigationService = navigationService;
-        _transactionEngine = transactionEngine;
+        _serviceProvider = serviceProvider;
 
         Items = new ObservableCollection<CleanupItemViewModel>(
             plan.Items.Select(i => 
@@ -105,8 +106,6 @@ public partial class CleanupPlanViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasExecutableItems;
 
-    private CancellationTokenSource? _executeCts;
-
     private void UpdateSummaries()
     {
         ApplicationName = _application.Name ?? string.Empty;
@@ -153,7 +152,7 @@ public partial class CleanupPlanViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    public async Task ExecuteCleanupAsync()
+    public void ExecuteCleanup()
     {
         if (SelectedArtifacts == 0) return;
 
@@ -161,38 +160,9 @@ public partial class CleanupPlanViewModel : ViewModelBase
         
         var selectedIds = Items.Where(i => i.IsSelected).Select(i => i.Id).ToList();
 
-        try
-        {
-            _executeCts?.Cancel();
-            _executeCts?.Dispose();
-            _executeCts = new CancellationTokenSource();
-
-            State = Enums.UIState.Working;
-            StatusMessage = "Executing cleanup transaction...";
-
-            var result = await _transactionEngine.ExecuteAsync(_plan, _application, selectedIds, _executeCts.Token);
-
-            if (result.Status == CleanupSessionStatus.Completed)
-            {
-                State = Enums.UIState.Success;
-                StatusMessage = "Cleanup successful.";
-                // In Phase 5C we will navigate to History or Recovery, for now just show success.
-            }
-            else
-            {
-                State = Enums.UIState.Error;
-                // Handle stale plan or other known blocks
-                ErrorMessage = $"Cleanup failed: {result.Status}.";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            State = Enums.UIState.Cancelled;
-            StatusMessage = "Cleanup cancelled.";
-        }
-        catch (Exception ex)
-        {
-            ErrorBoundary.HandleException(ex, "Executing Cleanup");
-        }
+        var execVm = ActivatorUtilities.CreateInstance<CleanupExecutionViewModel>(
+            _serviceProvider, _plan, _application, selectedIds);
+            
+        _navigationService.NavigateTo(execVm);
     }
 }

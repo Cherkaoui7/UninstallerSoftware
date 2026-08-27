@@ -23,6 +23,9 @@ public partial class App : Application
                 services.AddCore();
                 services.AddInfrastructure();
                 services.AddWindows();
+                services.AddSingleton<Services.ObservableItemExecutionTracker>();
+                services.AddSingleton<Services.IObservableItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableItemExecutionTracker>());
+                services.AddSingleton<Uninstaller.Core.Abstractions.IItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableItemExecutionTracker>());
                 services.AddSingleton<Services.IErrorBoundaryService, Services.ErrorBoundaryService>();
                 services.AddSingleton<Services.INavigationService, Services.NavigationService>();
                 
@@ -32,6 +35,7 @@ public partial class App : Application
                 services.AddTransient<ViewModels.ApplicationsViewModel>();
                 services.AddTransient<ViewModels.ApplicationDetailsViewModel>();
                 services.AddTransient<ViewModels.CleanupPlanViewModel>();
+                services.AddTransient<ViewModels.CleanupExecutionViewModel>();
                 services.AddTransient<ViewModels.RecoveryViewModel>();
                 services.AddTransient<ViewModels.HistoryViewModel>();
                 services.AddTransient<ViewModels.SettingsViewModel>();

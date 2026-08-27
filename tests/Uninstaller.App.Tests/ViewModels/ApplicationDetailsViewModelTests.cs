@@ -10,9 +10,22 @@ using Uninstaller.App.Services;
 using Uninstaller.App.Enums;
 using Xunit;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Uninstaller.App.Tests.ViewModels;
 
-public static class ServiceProviderMock { public static IServiceProvider Create() { var mock = new Mock<IServiceProvider>(); mock.Setup(x => x.GetService(typeof(Uninstaller.App.Services.INavigationService))).Returns(new Mock<Uninstaller.App.Services.INavigationService>().Object); mock.Setup(x => x.GetService(typeof(Uninstaller.Core.Abstractions.ICleanupTransactionEngine))).Returns(new Mock<Uninstaller.Core.Abstractions.ICleanupTransactionEngine>().Object); mock.Setup(x => x.GetService(typeof(Uninstaller.App.Services.IErrorBoundaryService))).Returns(new Mock<Uninstaller.App.Services.IErrorBoundaryService>().Object); return mock.Object; } }
+public static class ServiceProviderMock 
+{ 
+    public static IServiceProvider Create() 
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new Mock<Uninstaller.App.Services.INavigationService>().Object);
+        services.AddSingleton(new Mock<Uninstaller.Core.Abstractions.ICleanupTransactionEngine>().Object);
+        services.AddSingleton(new Mock<Uninstaller.App.Services.IErrorBoundaryService>().Object);
+        services.AddSingleton(new Mock<Uninstaller.App.Services.IObservableItemExecutionTracker>().Object);
+        return services.BuildServiceProvider();
+    } 
+}
 
 public class ApplicationDetailsViewModelTests
 {
@@ -49,7 +62,8 @@ public class ApplicationDetailsViewModelTests
 
         Assert.Equal(UIState.Success, vm.State);
     }
-    
+
+
     [Fact]
     public async Task AnalyzeResidualsAsync_Success_SetsStateToSuccess()
     {
