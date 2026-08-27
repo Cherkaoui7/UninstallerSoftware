@@ -14,17 +14,23 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
     private readonly IUninstallService _uninstallService;
     private readonly IResidualAnalysisService _analysisService;
     private readonly IApplicationRepository _repository;
+    private readonly INavigationService _navigationService;
+    private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cancellationTokenSource;
 
     public ApplicationDetailsViewModel(
         IUninstallService uninstallService,
         IResidualAnalysisService analysisService,
         IApplicationRepository repository,
+        INavigationService navigationService,
+        IServiceProvider serviceProvider,
         IErrorBoundaryService errorBoundary) : base(errorBoundary)
     {
         _uninstallService = uninstallService;
         _analysisService = analysisService;
         _repository = repository;
+        _navigationService = navigationService;
+        _serviceProvider = serviceProvider;
         
         State = UIState.Ready;
     }
@@ -111,12 +117,20 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
                 return;
             }
 
-            var plan = await _analysisService.RunAnalysisAsync(new Uninstaller.Domain.Entities.UninstallSession(), appEntity, _cancellationTokenSource.Token);
+            var session = await _analysisService.RunAnalysisAsync(new Uninstaller.Domain.Entities.UninstallSession(), appEntity, _cancellationTokenSource.Token);
             
-            State = UIState.Success;
-            StatusMessage = $"Analysis complete. Found {plan.ArtifactCount} potential residuals.";
-            
-            // In a real flow, we'd navigate to the CleanupPlanViewModel here
+            if (session.Plan != null)
+            {
+                State = UIState.Success;
+                StatusMessage = $"Analysis complete. Found {session.Plan.Items.Count} potential residuals.";
+                
+                var cleanupPlanVm = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<CleanupPlanViewModel>(_serviceProvider, session.Plan, appEntity);
+                _navigationService.NavigateTo(cleanupPlanVm);
+            }
+            else
+            {
+                SetError($"Analysis failed to generate a cleanup plan. Reason: {session.FailureReason}");
+            }
         }
         catch (OperationCanceledException)
         {

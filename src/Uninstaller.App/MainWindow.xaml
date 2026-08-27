@@ -27,6 +27,9 @@
         <DataTemplate DataType="{x:Type vm:ApplicationDetailsViewModel}">
             <v:ApplicationDetailsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupPlanViewModel}">
+            <v:CleanupPlanView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>

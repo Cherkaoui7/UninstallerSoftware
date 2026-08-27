@@ -1,0 +1,162 @@
+<UserControl x:Class="Uninstaller.App.Views.CleanupPlanView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <Grid Margin="10">
+        <!-- Main Content -->
+        <Grid Visibility="{Binding IsConfirmationVisible, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Header and Summary -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                <TextBlock Text="Cleanup Plan Review" FontSize="20" FontWeight="Bold" Margin="0,0,0,5" />
+                <TextBlock Text="{Binding ApplicationName, StringFormat='Application: {0}'}" />
+                <TextBlock Text="{Binding ApplicationVersion, StringFormat='Version: {0}'}" />
+                <TextBlock Text="{Binding ScanTimestamp, StringFormat='Scan Time: {0}'}" />
+                
+                <WrapPanel Margin="0,10,0,0">
+                    <TextBlock Text="{Binding TotalArtifacts, StringFormat='Total: {0}'}" Margin="0,0,15,0" />
+                    <TextBlock Text="{Binding RecommendedArtifacts, StringFormat='Recommended: {0}'}" Margin="0,0,15,0" />
+                    <TextBlock Text="{Binding ProtectedArtifacts, StringFormat='Protected: {0}'}" Margin="0,0,15,0" />
+                    <TextBlock Text="{Binding BlockedArtifacts, StringFormat='Blocked: {0}'}" Margin="0,0,15,0" />
+                    <TextBlock Text="{Binding WarningsCount, StringFormat='Warnings: {0}'}" Foreground="Orange" />
+                </WrapPanel>
+            </StackPanel>
+
+            <!-- Grid and Details Panel -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- DataGrid -->
+                <DataGrid Grid.Column="0" 
+                          ItemsSource="{Binding Items}" 
+                          SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                          AutoGenerateColumns="False" 
+                          CanUserAddRows="False"
+                          SelectionMode="Single"
+                          Margin="0,0,10,0">
+                    <DataGrid.Columns>
+                        <!-- IsSelected Checkbox -->
+                        <DataGridTemplateColumn Header="Remove">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" 
+                                              IsEnabled="{Binding CanSelect}"
+                                              HorizontalAlignment="Center" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        
+                        <DataGridTextColumn Header="Type" Binding="{Binding ArtifactType}" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="*" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Classification" Binding="{Binding Classification}" IsReadOnly="True" />
+                        <DataGridTextColumn Header="Risk" Binding="{Binding RiskLevel}" IsReadOnly="True" />
+                        
+                        <DataGridTemplateColumn Header="Safety">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="[REC] " Visibility="{Binding Recommended, Converter={StaticResource BoolToVis}}" Foreground="Green" ToolTip="Recommended for removal" />
+                                        <TextBlock Text="[PROT] " Visibility="{Binding IsProtected, Converter={StaticResource BoolToVis}}" Foreground="Blue" ToolTip="Protected item" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Detail Panel -->
+                <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="10">
+                    <ScrollViewer>
+                        <StackPanel>
+                            <TextBlock Text="Item Details" FontWeight="Bold" Margin="0,0,0,10" />
+                            <TextBlock Text="Select an artifact to view details" 
+                                       Visibility="{Binding SelectedItem, Converter={StaticResource BoolToVis}, ConverterParameter=Inverse}" />
+                            
+                            <StackPanel DataContext="{Binding SelectedItem}">
+                                <TextBlock Text="Path:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Path}" TextWrapping="Wrap" Margin="0,0,0,5" />
+                                
+                                <TextBlock Text="Type:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ArtifactType}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Classification:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Classification}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Confidence Score:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding ConfidenceScore}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Risk Level:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding RiskLevel}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Protected:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding IsProtected}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Recommended:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Recommended}" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Reasons:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Reasons}" TextWrapping="Wrap" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Applied Rules:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding AppliedRules}" TextWrapping="Wrap" Margin="0,0,0,5" />
+
+                                <TextBlock Text="Evidence:" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Evidence}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Footer Toolbar -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0" HorizontalAlignment="Right">
+                <TextBlock Text="{Binding SelectedArtifacts, StringFormat='Selected: {0}'}" VerticalAlignment="Center" Margin="0,0,15,0" />
+                <TextBlock Text="{Binding OverallRisk, StringFormat='Risk: {0}'}" VerticalAlignment="Center" Margin="0,0,15,0" />
+                
+                <Button Content="Review Cleanup Plan" Command="{Binding ReviewCleanupCommand}" Padding="10,5" />
+            </StackPanel>
+            
+            <StatusBar Grid.Row="2" VerticalAlignment="Bottom" Margin="0,40,0,0">
+                <StatusBarItem>
+                    <TextBlock Text="{Binding StatusMessage}" />
+                </StatusBarItem>
+                <StatusBarItem HorizontalAlignment="Right">
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" />
+                </StatusBarItem>
+            </StatusBar>
+        </Grid>
+
+        <!-- Confirmation Overlay -->
+        <Grid Visibility="{Binding IsConfirmationVisible, Converter={StaticResource BoolToVis}}" Background="#EEFFFFFF">
+            <Border Background="White" BorderBrush="Black" BorderThickness="1" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20">
+                <StackPanel Width="400">
+                    <TextBlock Text="Confirm Cleanup Execution" FontSize="18" FontWeight="Bold" Margin="0,0,0,10" />
+                    
+                    <TextBlock Text="{Binding ApplicationName, StringFormat='Application: {0}'}" Margin="0,0,0,5" />
+                    <TextBlock Text="{Binding SelectedArtifacts, StringFormat='Selected artifacts to remove: {0}'}" Margin="0,0,0,5" />
+                    <TextBlock Text="{Binding OverallRisk, StringFormat='Risk Level: {0}'}" Margin="0,0,0,5" />
+                    <TextBlock Text="{Binding WarningsCount, StringFormat='Warnings: {0}'}" Margin="0,0,0,15" />
+                    
+                    <TextBlock Text="Backup: Required and will be verified by the execution engine." TextWrapping="Wrap" Margin="0,0,0,5" />
+                    <TextBlock Text="Recovery: Available through existing recovery subsystem." TextWrapping="Wrap" Margin="0,0,0,20" />
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Command="{Binding CancelConfirmationCommand}" Margin="0,0,10,0" Padding="10,5" />
+                        <Button Content="{Binding SelectedArtifacts, StringFormat='Remove {0} selected items'}" Command="{Binding ExecuteCleanupCommand}" Padding="10,5" Background="#FFDDDD" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,33 +1,53 @@
+using System;
+using System.Linq;
+using Uninstaller.Domain.Entities;
+using Uninstaller.Domain.Enums;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Uninstaller.App.ViewModels;
 
 public partial class CleanupItemViewModel : ObservableObject
 {
-    [ObservableProperty]
-    private string _artifactPath = string.Empty;
+    public CleanupPlanItem Model { get; }
 
-    [ObservableProperty]
-    private string _artifactType = string.Empty;
+    public CleanupItemViewModel(CleanupPlanItem item)
+    {
+        Model = item;
+        _isSelected = item.Recommended;
+    }
 
-    [ObservableProperty]
-    private string _classification = string.Empty;
+    public Guid Id => Model.Id;
+    public string Path => Model.Path;
+    public string ArtifactType => Model.ArtifactType.ToString();
+    public string Classification => Model.Classification.ToString();
+    public int ConfidenceScore => Model.ConfidenceScore;
+    public string RiskLevel => Model.RiskLevel.ToString();
+    public bool Recommended => Model.Recommended;
+    public bool IsProtected => Model.IsProtected;
+    
+    public string Reasons => string.Join(System.Environment.NewLine, Model.Reasons);
+    public string AppliedRules => string.Join(System.Environment.NewLine, Model.AppliedRules);
+    
+    // Convert Evidence into a readable string for the UI Detail Panel
+    public string Evidence => string.Join(System.Environment.NewLine, Model.Evidence.Select(e => $"{e.Type}: {e.Description} ({e.Source})"));
 
-    [ObservableProperty]
-    private string _confidence = string.Empty;
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (value && !CanSelect)
+                return; // Prevent selection of forbidden items
 
-    [ObservableProperty]
-    private string _risk = string.Empty;
+            SetProperty(ref _isSelected, value);
+        }
+    }
 
-    [ObservableProperty]
-    private string _recommendation = string.Empty;
-
-    [ObservableProperty]
-    private bool _isProtected;
-
-    [ObservableProperty]
-    private string _reasons = string.Empty;
-
-    [ObservableProperty]
-    private string _appliedRules = string.Empty;
+    public bool CanSelect =>
+        !IsProtected &&
+        Model.Classification != ArtifactClassification.UserData &&
+        Model.Classification != ArtifactClassification.SharedDependency &&
+        Model.Classification != ArtifactClassification.Unknown &&
+        Model.RiskLevel != Uninstaller.Domain.Enums.RiskLevel.Blocked;
 }

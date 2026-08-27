@@ -12,13 +12,19 @@ namespace Uninstaller.Core.Services;
 public class ResidualAnalysisService : IResidualAnalysisService
 {
     private readonly IEnumerable<IResidualScanner> _scanners;
+    private readonly IEvidenceEngine _evidenceEngine;
+    private readonly ICleanupPlanGenerator _planGenerator;
     private readonly ILogger<ResidualAnalysisService> _logger;
 
     public ResidualAnalysisService(
         IEnumerable<IResidualScanner> scanners,
+        IEvidenceEngine evidenceEngine,
+        ICleanupPlanGenerator planGenerator,
         ILogger<ResidualAnalysisService> logger)
     {
         _scanners = scanners;
+        _evidenceEngine = evidenceEngine;
+        _planGenerator = planGenerator;
         _logger = logger;
     }
 
@@ -67,7 +73,16 @@ public class ResidualAnalysisService : IResidualAnalysisService
                 }
             }
 
-            session.ArtifactCount = discoveredCandidates.Count;
+            var analysisResults = new List<ArtifactAnalysisResult>();
+            foreach (var candidate in discoveredCandidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = _evidenceEngine.Analyze(candidate);
+                analysisResults.Add(result);
+            }
+
+            session.Plan = _planGenerator.Generate(session.Id, application.Id, analysisResults);
+            session.ArtifactCount = session.Plan.Items.Count;
             session.Status = ResidualAnalysisStatus.Completed;
             session.CompletedAt = DateTime.UtcNow;
             

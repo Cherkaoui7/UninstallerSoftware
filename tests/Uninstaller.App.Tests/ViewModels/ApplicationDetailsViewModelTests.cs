@@ -12,6 +12,8 @@ using Xunit;
 
 namespace Uninstaller.App.Tests.ViewModels;
 
+public static class ServiceProviderMock { public static IServiceProvider Create() { var mock = new Mock<IServiceProvider>(); mock.Setup(x => x.GetService(typeof(Uninstaller.App.Services.INavigationService))).Returns(new Mock<Uninstaller.App.Services.INavigationService>().Object); mock.Setup(x => x.GetService(typeof(Uninstaller.Core.Abstractions.ICleanupTransactionEngine))).Returns(new Mock<Uninstaller.Core.Abstractions.ICleanupTransactionEngine>().Object); mock.Setup(x => x.GetService(typeof(Uninstaller.App.Services.IErrorBoundaryService))).Returns(new Mock<Uninstaller.App.Services.IErrorBoundaryService>().Object); return mock.Object; } }
+
 public class ApplicationDetailsViewModelTests
 {
     private readonly Mock<IUninstallService> _mockUninstall;
@@ -40,7 +42,7 @@ public class ApplicationDetailsViewModelTests
         _mockUninstall.Setup(u => u.RunUninstallAsync(appEntity, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UninstallSession { Status = UninstallSessionStatus.Completed });
 
-        var vm = new ApplicationDetailsViewModel(_mockUninstall.Object, _mockAnalysis.Object, _mockRepo.Object, _mockError.Object);
+        var vm = new ApplicationDetailsViewModel(_mockUninstall.Object, _mockAnalysis.Object, _mockRepo.Object, new Mock<INavigationService>().Object, ServiceProviderMock.Create(), _mockError.Object);
         vm.LoadApplication(appVm);
         
         await vm.UninstallCommand.ExecuteAsync(null);
@@ -59,9 +61,9 @@ public class ApplicationDetailsViewModelTests
             .ReturnsAsync(appEntity);
             
         _mockAnalysis.Setup(a => a.RunAnalysisAsync(It.IsAny<Uninstaller.Domain.Entities.UninstallSession>(), appEntity, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Uninstaller.Domain.Entities.ResidualAnalysisSession { Id = Guid.NewGuid() });
+            .ReturnsAsync(new Uninstaller.Domain.Entities.ResidualAnalysisSession { Id = Guid.NewGuid(), Plan = new Uninstaller.Domain.Entities.CleanupPlan() });
 
-        var vm = new ApplicationDetailsViewModel(_mockUninstall.Object, _mockAnalysis.Object, _mockRepo.Object, _mockError.Object);
+        var vm = new ApplicationDetailsViewModel(_mockUninstall.Object, _mockAnalysis.Object, _mockRepo.Object, new Mock<INavigationService>().Object, ServiceProviderMock.Create(), _mockError.Object);
         vm.LoadApplication(appVm);
         
         await vm.AnalyzeResidualsCommand.ExecuteAsync(null);

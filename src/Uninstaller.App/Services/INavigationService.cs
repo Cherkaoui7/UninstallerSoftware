@@ -6,4 +6,5 @@ public interface INavigationService : System.ComponentModel.INotifyPropertyChang
 {
     ObservableObject? CurrentViewModel { get; }
     void NavigateTo<TViewModel>() where TViewModel : ObservableObject;
+    void NavigateTo(ObservableObject viewModel);
 }

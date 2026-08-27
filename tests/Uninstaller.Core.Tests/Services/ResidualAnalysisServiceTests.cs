@@ -17,6 +17,8 @@ public class ResidualAnalysisServiceTests
 {
     private readonly Mock<IResidualScanner> _scanner1Mock;
     private readonly Mock<IResidualScanner> _scanner2Mock;
+    private readonly Mock<IEvidenceEngine> _evidenceMock;
+    private readonly Mock<ICleanupPlanGenerator> _planGenMock;
     private readonly ResidualAnalysisService _service;
 
     public ResidualAnalysisServiceTests()
@@ -29,7 +31,21 @@ public class ResidualAnalysisServiceTests
 
         var scanners = new List<IResidualScanner> { _scanner1Mock.Object, _scanner2Mock.Object };
         
-        _service = new ResidualAnalysisService(scanners, NullLogger<ResidualAnalysisService>.Instance);
+        _evidenceMock = new Mock<IEvidenceEngine>();
+        _evidenceMock.Setup(e => e.Analyze(It.IsAny<ResidualArtifactCandidate>()))
+            .Returns((ResidualArtifactCandidate c) => new ArtifactAnalysisResult(c.Artifact, 100, ArtifactClassification.ApplicationOwned, new List<string>(), new List<Evidence>(), new List<string>(), false));
+            
+        _planGenMock = new Mock<ICleanupPlanGenerator>();
+        _planGenMock.Setup(p => p.Generate(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<IEnumerable<ArtifactAnalysisResult>>()))
+            .Returns((Guid sid, Guid aid, IEnumerable<ArtifactAnalysisResult> res) => 
+            {
+                var plan = new CleanupPlan { Id = Guid.NewGuid(), UninstallSessionId = sid, ApplicationId = aid };
+                foreach (var r in res)
+                    plan.Items.Add(new CleanupPlanItem { ArtifactId = r.Artifact.Id });
+                return plan;
+            });
+        
+        _service = new ResidualAnalysisService(scanners, _evidenceMock.Object, _planGenMock.Object, NullLogger<ResidualAnalysisService>.Instance);
     }
 
     [Fact]

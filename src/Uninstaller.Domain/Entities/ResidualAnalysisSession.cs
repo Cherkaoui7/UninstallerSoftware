@@ -14,5 +14,6 @@ public class ResidualAnalysisSession
     public ResidualAnalysisStatus Status { get; set; }
     public int ArtifactCount { get; set; }
     public int ErrorCount { get; set; }
+    public CleanupPlan? Plan { get; set; }
     public string? FailureReason { get; set; }
 }

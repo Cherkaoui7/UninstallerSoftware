@@ -24,4 +24,9 @@ public class NavigationService : ObservableObject, INavigationService
     {
         CurrentViewModel = _serviceProvider.GetRequiredService<TViewModel>();
     }
+
+    public void NavigateTo(ObservableObject viewModel)
+    {
+        CurrentViewModel = viewModel;
+    }
 }
