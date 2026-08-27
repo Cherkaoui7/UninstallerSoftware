@@ -23,7 +23,18 @@ public partial class App : Application
                 services.AddCore();
                 services.AddInfrastructure();
                 services.AddWindows();
+                services.AddSingleton<Services.IErrorBoundaryService, Services.ErrorBoundaryService>();
+                services.AddSingleton<Services.INavigationService, Services.NavigationService>();
+                
+                // ViewModels
                 services.AddTransient<ViewModels.MainViewModel>();
+                services.AddTransient<ViewModels.DashboardViewModel>();
+                services.AddTransient<ViewModels.ApplicationsViewModel>();
+                services.AddTransient<ViewModels.ApplicationDetailsViewModel>();
+                services.AddTransient<ViewModels.CleanupPlanViewModel>();
+                services.AddTransient<ViewModels.RecoveryViewModel>();
+                services.AddTransient<ViewModels.HistoryViewModel>();
+                services.AddTransient<ViewModels.SettingsViewModel>();
                 services.AddTransient<MainWindow>();
             })
             .Build();

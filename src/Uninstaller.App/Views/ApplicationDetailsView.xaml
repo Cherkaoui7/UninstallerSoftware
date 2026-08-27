@@ -1,0 +1,35 @@
+<UserControl x:Class="Uninstaller.App.Views.ApplicationDetailsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="{Binding Application.Name}" FontSize="24" FontWeight="Bold" Margin="0,0,0,20" />
+        
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="{Binding Application.Publisher, StringFormat='Publisher: {0}'}" Margin="0,5" />
+            <TextBlock Text="{Binding Application.Version, StringFormat='Version: {0}'}" Margin="0,5" />
+            <TextBlock Text="{Binding Application.InstallLocation, StringFormat='Install Location: {0}'}" Margin="0,5" />
+            <TextBlock Text="{Binding Application.RegistrySource, StringFormat='Registry Source: {0}'}" Margin="0,5" />
+            
+            <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                <Button Content="Official Uninstall" Command="{Binding UninstallCommand}" Width="150" Padding="10" Margin="0,0,10,0" />
+                <Button Content="Analyze Residuals" Command="{Binding AnalyzeResidualsCommand}" Width="150" Padding="10" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" Margin="0,10,0,0">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusMessage}" FontWeight="Bold" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" />
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</UserControl>

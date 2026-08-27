@@ -21,6 +21,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
 
-        Loaded += async (s, e) => await viewModel.InitializeAsync();
+        
     }
 }

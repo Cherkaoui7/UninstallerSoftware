@@ -3,51 +3,51 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Uninstaller.App"
+        xmlns:vm="clr-namespace:Uninstaller.App.ViewModels"
+        xmlns:v="clr-namespace:Uninstaller.App.Views"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        Title="Uninstaller Phase 5A" Height="600" Width="900" WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+            <v:DashboardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationsViewModel}">
+            <v:ApplicationsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
+            <v:HistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
+            <v:RecoveryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationDetailsViewModel}">
+            <v:ApplicationDetailsView />
+        </DataTemplate>
+    </Window.Resources>
 
-        <!-- Toolbar -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button Content="Scan" Command="{Binding ScanCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
-            <Button Content="Uninstall" Command="{Binding UninstallCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
-            <Button Content="Cancel" Command="{Binding CancelCommand}" Width="100" Margin="0,0,10,0" Padding="5" />
-            
-            <TextBlock Text="Search:" VerticalAlignment="Center" Margin="10,0,5,0" />
-            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="200" VerticalAlignment="Center" Padding="2" />
-        </StackPanel>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <!-- Applications Grid -->
-        <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding ApplicationsView}" 
-                  SelectedItem="{Binding SelectedApplication, Mode=TwoWay}"
-                  AutoGenerateColumns="False" 
-                  IsReadOnly="True"
-                  SelectionMode="Single">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*" />
-                <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="*" />
-                <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="1.5*" />
-                <DataGridTextColumn Header="Status" Binding="{Binding UninstallStatus}" Width="*" />
-                <DataGridTextColumn Header="Source" Binding="{Binding RegistrySource}" Width="*" />
-                <DataGridTextColumn Header="Install Location" Binding="{Binding InstallLocation}" Width="2*" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,0,1,0">
+            <StackPanel Margin="0,20,0,0">
+                <TextBlock Text="Uninstaller" FontSize="20" FontWeight="Bold" Margin="20,0,20,20" />
+                <Button Content="Dashboard" Command="{Binding NavigateToDashboardCommand}" Margin="10,5" Padding="10" HorizontalContentAlignment="Left" />
+                <Button Content="Applications" Command="{Binding NavigateToApplicationsCommand}" Margin="10,5" Padding="10" HorizontalContentAlignment="Left" />
+                <Button Content="History" Command="{Binding NavigateToHistoryCommand}" Margin="10,5" Padding="10" HorizontalContentAlignment="Left" />
+                <Button Content="Recovery" Command="{Binding NavigateToRecoveryCommand}" Margin="10,5" Padding="10" HorizontalContentAlignment="Left" />
+                <Button Content="Settings" Command="{Binding NavigateToSettingsCommand}" Margin="10,5" Padding="10" HorizontalContentAlignment="Left" />
+            </StackPanel>
+        </Border>
 
-        <!-- Status Bar -->
-        <StatusBar Grid.Row="2" Margin="0,10,0,0">
-            <StatusBarItem>
-                <TextBlock Text="{Binding StatusMessage}" FontWeight="Bold" />
-            </StatusBarItem>
-            <StatusBarItem HorizontalAlignment="Right">
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="Red" />
-            </StatusBarItem>
-        </StatusBar>
+        <!-- Main Content Area -->
+        <ContentControl Grid.Column="1" Content="{Binding CurrentViewModel}" Margin="10" />
     </Grid>
 </Window>
