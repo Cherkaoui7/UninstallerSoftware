@@ -5,7 +5,8 @@
 
 # dotenv files
 .env
-
+.img
+.jpg
 # User-specific files
 *.rsuser
 *.suo
@@ -498,3 +499,4 @@ cache/
 
 # Local .NET SDK
 .dotnet/
+mockup/uninstaller_dashboard_mockup_1787838966449.jpg
