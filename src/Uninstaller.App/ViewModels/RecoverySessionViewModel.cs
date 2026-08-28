@@ -100,7 +100,7 @@ public partial class RecoverySessionViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void ReturnToHistory()
     {
-        _navigationService.NavigateTo(new HistoryViewModel(ErrorBoundary));
+        _navigationService.NavigateTo<HistoryViewModel>();
     }
 
     public async Task StartExecutionAsync()

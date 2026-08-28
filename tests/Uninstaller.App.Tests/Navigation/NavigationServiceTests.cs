@@ -17,6 +17,13 @@ public class NavigationServiceTests
         var errorBoundary = new ErrorBoundaryService();
         services.AddSingleton<IErrorBoundaryService>(errorBoundary);
         
+        // Mock IHistoryRepository using a stub for DI resolution
+        var mockHistoryRepo = new Moq.Mock<Uninstaller.Core.Abstractions.IHistoryRepository>();
+        services.AddSingleton(mockHistoryRepo.Object);
+
+        // Navigation service needs to be resolved by VMs
+        services.AddSingleton<INavigationService, NavigationService>();
+
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ApplicationsViewModel>(sp => null!); // Mocked out or stubbed later if needed for full tests
         services.AddTransient<HistoryViewModel>();
