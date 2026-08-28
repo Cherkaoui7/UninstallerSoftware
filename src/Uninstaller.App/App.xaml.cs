@@ -26,6 +26,11 @@ public partial class App : Application
                 services.AddSingleton<Services.ObservableItemExecutionTracker>();
                 services.AddSingleton<Services.IObservableItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableItemExecutionTracker>());
                 services.AddSingleton<Uninstaller.Core.Abstractions.IItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableItemExecutionTracker>());
+                
+                services.AddSingleton<Services.ObservableRecoveryItemExecutionTracker>();
+                services.AddSingleton<Services.IObservableRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableRecoveryItemExecutionTracker>());
+                services.AddSingleton<Uninstaller.Core.Abstractions.IRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<Services.ObservableRecoveryItemExecutionTracker>());
+
                 services.AddSingleton<Services.IErrorBoundaryService, Services.ErrorBoundaryService>();
                 services.AddSingleton<Services.INavigationService, Services.NavigationService>();
                 
@@ -76,4 +81,3 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
-

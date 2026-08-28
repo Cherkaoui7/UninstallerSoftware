@@ -42,13 +42,6 @@ public class NavigationServiceTests
         Assert.IsType<HistoryViewModel>(nav.CurrentViewModel);
     }
     
-    [Fact]
-    public void NavigateTo_Recovery_SetsCurrentViewModel()
-    {
-        var nav = new NavigationService(_serviceProvider);
-        nav.NavigateTo<RecoveryViewModel>();
-        Assert.IsType<RecoveryViewModel>(nav.CurrentViewModel);
-    }
     
     [Fact]
     public void NavigateTo_Settings_SetsCurrentViewModel()

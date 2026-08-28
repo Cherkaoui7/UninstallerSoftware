@@ -30,6 +30,12 @@
         <DataTemplate DataType="{x:Type vm:CleanupPlanViewModel}">
             <v:CleanupPlanView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupExecutionViewModel}">
+            <v:CleanupExecutionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoverySessionViewModel}">
+            <v:RecoverySessionView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>

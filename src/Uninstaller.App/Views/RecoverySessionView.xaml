@@ -1,0 +1,67 @@
+<UserControl x:Class="Uninstaller.App.Views.RecoverySessionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Uninstaller.App.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="800">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="Recovery Execution" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="{Binding ApplicationName, StringFormat='Application: {0}'}" FontSize="16" />
+            <TextBlock Text="{Binding StatusMessage}" FontSize="14" FontWeight="SemiBold" Margin="0,5,0,0" Foreground="#2563eb" />
+            
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressPercentage}" Height="20" Margin="0,10,0,0" />
+            <TextBlock Text="{Binding ProgressPercentage, StringFormat='{}{0:F1}% Complete'}" HorizontalAlignment="Right" Foreground="Gray" />
+        </StackPanel>
+
+        <!-- Tracker List -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True" SelectionMode="Single">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Type" Binding="{Binding ArtifactType}" Width="100" />
+                <DataGridTextColumn Header="Original Path" Binding="{Binding OriginalPath}" Width="*" />
+                <DataGridTextColumn Header="State" Binding="{Binding RecoveryStatus}" Width="150" />
+                <DataGridTextColumn Header="Details / Failure" Binding="{Binding FailureReason}" Width="250" Foreground="Red" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SuccessCount, StringFormat='Recovered: {0}'}" Margin="0,0,15,0" Foreground="Green" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding FailedCount, StringFormat='Failed: {0}'}" Margin="0,0,15,0" Foreground="Red" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding ConflictCount, StringFormat='Conflicts: {0}'}" Margin="0,0,15,0" Foreground="#d97706" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding CancelledCount, StringFormat='Cancelled: {0}'}" Margin="0,0,15,0" Foreground="Gray" FontWeight="SemiBold" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="Cancel Recovery" 
+                        Command="{Binding CancelCommand}" 
+                        Padding="15,5" 
+                        Margin="0,0,10,0" 
+                        Visibility="{Binding CanCancel, Converter={StaticResource BoolToVis}}" />
+                
+                <Button Content="Return to History" 
+                        Command="{Binding ReturnToHistoryCommand}" 
+                        Padding="15,5" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
