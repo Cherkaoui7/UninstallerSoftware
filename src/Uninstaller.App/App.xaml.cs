@@ -59,6 +59,13 @@ public partial class App : Application
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await db.Database.MigrateAsync();
+
+                var recoveryService = scope.ServiceProvider.GetRequiredService<Uninstaller.Core.Abstractions.IStartupRecoveryService>();
+                bool interrupted = await recoveryService.ReconcileIncompleteTransactionsAsync();
+                if (interrupted)
+                {
+                    MessageBox.Show("An interrupted operation was detected during the last session. The system has automatically reconciled the state. Please review the History or Recovery tabs for details.", "Recovery Reconciled", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
             }
 
             var mainWindow = _host.Services.GetRequiredService<MainWindow>();

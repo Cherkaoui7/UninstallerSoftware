@@ -20,6 +20,7 @@ public class CleanupTransactionEngineTests
     private readonly Mock<IBackupService> _backupServiceMock;
     private readonly Mock<IExecutorResolver> _executorResolverMock;
     private readonly Mock<IItemExecutionTracker> _executionTrackerMock;
+    private readonly Mock<ITransactionJournal> _journalMock;
     private readonly Mock<ICleanupExecutor> _executorMock;
     private readonly CleanupTransactionEngine _engine;
 
@@ -29,6 +30,7 @@ public class CleanupTransactionEngineTests
         _backupServiceMock = new Mock<IBackupService>();
         _executorResolverMock = new Mock<IExecutorResolver>();
         _executionTrackerMock = new Mock<IItemExecutionTracker>();
+        _journalMock = new Mock<ITransactionJournal>();
         _executorMock = new Mock<ICleanupExecutor>();
 
         _engine = new CleanupTransactionEngine(
@@ -36,6 +38,7 @@ public class CleanupTransactionEngineTests
             _backupServiceMock.Object,
             _executorResolverMock.Object,
             _executionTrackerMock.Object,
+            _journalMock.Object,
             NullLogger<CleanupTransactionEngine>.Instance);
     }
 

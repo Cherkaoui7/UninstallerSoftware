@@ -17,6 +17,10 @@ public static class DependencyInjection
         services.AddScoped<IExecutorResolver, ExecutorResolver>();
         services.AddScoped<IItemExecutionTracker, NoOpItemExecutionTracker>();
         services.AddScoped<ICleanupTransactionEngine, CleanupTransactionEngine>();
+        services.AddScoped<IRecoveryTransactionEngine, RecoveryTransactionEngine>();
+        services.AddScoped<ICleanupPreflightValidator, CleanupPreflightValidator>();
+        services.AddScoped<IResidualAnalysisService, ResidualAnalysisService>();
+        services.AddScoped<IStartupRecoveryService, StartupRecoveryService>();
 
         return services;
     }

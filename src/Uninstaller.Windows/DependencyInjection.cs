@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddTransient<IServiceManager, WindowsServiceManager>();
         services.AddTransient<ITaskScheduler, WindowsTaskScheduler>();
         services.AddTransient<IProcessExecutor, WindowsProcessExecutor>();
+        services.AddSingleton<ICanonicalPathResolver, Uninstaller.Windows.Filesystem.WindowsCanonicalPathResolver>();
         services.AddSingleton<IFileCleanupExecutor, WindowsFileCleanupExecutor>();
         services.AddSingleton<IRegistryCleanupExecutor, WindowsRegistryCleanupExecutor>();
         services.AddSingleton<IShortcutCleanupExecutor, WindowsShortcutCleanupExecutor>();

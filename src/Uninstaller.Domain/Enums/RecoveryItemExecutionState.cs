@@ -1,4 +1,4 @@
-﻿namespace Uninstaller.Domain.Enums;
+namespace Uninstaller.Domain.Enums;
 
 public enum RecoveryItemExecutionState
 {
@@ -10,5 +10,8 @@ public enum RecoveryItemExecutionState
     Recovered = 5,
     Conflict = 6,
     Failed = 7,
-    Cancelled = 8
+    Cancelled = 8,
+    Interrupted = 9,
+    Reconciling = 10,
+    Reconciled = 11
 }

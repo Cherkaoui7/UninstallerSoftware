@@ -14,17 +14,20 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
     private readonly IBackupService _backupService;
     private readonly IRecoveryExecutorResolver _executorResolver;
     private readonly IRecoveryItemExecutionTracker _executionTracker;
+    private readonly ITransactionJournal _journal;
 
     public RecoveryTransactionEngine(
         ILogger<RecoveryTransactionEngine> logger,
         IBackupService backupService,
         IRecoveryExecutorResolver executorResolver,
-        IRecoveryItemExecutionTracker executionTracker)
+        IRecoveryItemExecutionTracker executionTracker,
+        ITransactionJournal journal)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _backupService = backupService ?? throw new ArgumentNullException(nameof(backupService));
         _executorResolver = executorResolver ?? throw new ArgumentNullException(nameof(executorResolver));
         _executionTracker = executionTracker ?? throw new ArgumentNullException(nameof(executionTracker));
+        _journal = journal ?? throw new ArgumentNullException(nameof(journal));
     }
 
     public async Task<RecoverySessionResult> ExecuteAsync(
@@ -48,18 +51,18 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
 
             if (cancellationToken.IsCancellationRequested)
             {
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Cancelled);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = RecoverySessionStatus.Cancelled;
                 break;
             }
 
             // 1. Validating
-            await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Validating);
+            await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Validating, cancellationToken);
             var backup = await _backupService.GetBackupAsync(item.BackupArtifactId, cancellationToken);
             if (backup == null)
             {
                 _logger.LogError("Backup {BackupId} not found for recovery item {ItemId}", item.BackupArtifactId, item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Failed);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.ValidationFailed;
                 executionResult.FailureReason = "Backup artifact not found.";
                 result.Results.Add(executionResult);
@@ -70,7 +73,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
             if (backup.ArtifactType != item.ArtifactType)
             {
                 _logger.LogError("Backup artifact type mismatch for item {ItemId}", item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Failed);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.ValidationFailed;
                 executionResult.FailureReason = "Backup artifact type mismatch.";
                 result.Results.Add(executionResult);
@@ -79,12 +82,12 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
             }
 
             // 2. Verify Backup
-            await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.VerifyingBackup);
+            await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.VerifyingBackup, cancellationToken);
             var verificationResult = await _backupService.VerifyBackupAsync(backup, cancellationToken);
             if (!verificationResult.IsValid)
             {
                 _logger.LogError("Backup {BackupId} failed verification immediately before restoration for item {ItemId}", item.BackupArtifactId, item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Failed);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.BackupInvalid;
                 executionResult.FailureReason = $"Backup verification failed: {verificationResult.FailureReason}";
                 result.Results.Add(executionResult);
@@ -94,7 +97,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
 
             if (cancellationToken.IsCancellationRequested)
             {
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Cancelled);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = RecoverySessionStatus.Cancelled;
                 break;
             }
@@ -104,7 +107,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
             if (executor == null)
             {
                 _logger.LogError("No executor found for artifact type {ArtifactType}", item.ArtifactType);
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Failed);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.ValidationFailed;
                 executionResult.FailureReason = $"No executor found for artifact type {item.ArtifactType}";
                 result.Results.Add(executionResult);
@@ -129,7 +132,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
             };
 
             // 5. Restore
-            await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Restoring);
+            await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Restoring, cancellationToken);
             try
             {
                 var execResult = await executor.ExecuteAsync(context, CancellationToken.None);
@@ -137,7 +140,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
 
                 if (execResult.Success)
                 {
-                    await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Recovered);
+                    await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Recovered, CancellationToken.None);
                     result.SuccessCount++;
                 }
                 else
@@ -146,14 +149,14 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
                         ? RecoveryItemExecutionState.Conflict
                         : RecoveryItemExecutionState.Failed;
                         
-                    await _executionTracker.UpdateStateAsync(item.Id, failState);
+                    await UpdateStateAsync(session.Id, item, failState, CancellationToken.None);
                     result.FailureCount++;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Fatal error recovering item {ItemId}", item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, RecoveryItemExecutionState.Failed);
+                await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.Failed;
                 executionResult.FailureReason = $"Exception during recovery: {ex.Message}";
                 result.Results.Add(executionResult);
@@ -179,5 +182,11 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
 
         result.CompletedAt = DateTime.UtcNow;
         return result;
+    }
+
+    private async Task UpdateStateAsync(Guid sessionId, RecoveryItem item, RecoveryItemExecutionState state, CancellationToken cancellationToken)
+    {
+        await _journal.RecordStateAsync(sessionId, item.BackupArtifactId, TransactionType.Recovery, state.ToString(), cancellationToken);
+        await _executionTracker.UpdateStateAsync(item.Id, state);
     }
 }

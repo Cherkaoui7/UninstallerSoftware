@@ -16,6 +16,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
     private readonly IBackupService _backupService;
     private readonly IExecutorResolver _executorResolver;
     private readonly IItemExecutionTracker _executionTracker;
+    private readonly ITransactionJournal _journal;
     private readonly ILogger<CleanupTransactionEngine> _logger;
 
     public CleanupTransactionEngine(
@@ -23,12 +24,14 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
         IBackupService backupService,
         IExecutorResolver executorResolver,
         IItemExecutionTracker executionTracker,
+        ITransactionJournal journal,
         ILogger<CleanupTransactionEngine> logger)
     {
         _preflightValidator = preflightValidator;
         _backupService = backupService;
         _executorResolver = executorResolver;
         _executionTracker = executionTracker;
+        _journal = journal;
         _logger = logger;
     }
 
@@ -58,22 +61,21 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             if (cancellationToken.IsCancellationRequested)
             {
                 _logger.LogInformation("Cancellation requested before starting item {ItemId}. Stopping session.", item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Cancelled);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = CleanupSessionStatus.Cancelled;
                 break;
             }
 
             var executionResult = new CleanupExecutionResult { ItemId = item.Id };
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Pending);
-
-            // 1. Fresh preflight validation
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Pending, cancellationToken);
+            
             _logger.LogInformation("Starting preflight validation for item {ItemId}", item.Id);
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Validating);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Validating, cancellationToken);
             var preflightResult = await _preflightValidator.ValidateAsync(item, application, cancellationToken);
             if (preflightResult.Outcome != PreflightValidationOutcome.Authorized)
             {
                 _logger.LogWarning("Preflight unauthorized for item {ItemId}: {Outcome}", item.Id, preflightResult.Outcome);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Skipped);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Skipped, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.ValidationFailed;
                 executionResult.FailureReason = $"Fresh preflight validation failed: {preflightResult.Outcome}";
                 result.Results.Add(executionResult);
@@ -82,18 +84,18 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             }
             
             
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.PreflightAuthorized);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.PreflightAuthorized, cancellationToken);
             
             if (cancellationToken.IsCancellationRequested)
             {
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Cancelled);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = CleanupSessionStatus.Cancelled;
                 break;
             }
 
             // 2. Backup
             _logger.LogInformation("Starting backup for item {ItemId}", item.Id);
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.BackingUp);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.BackingUp, cancellationToken);
             var backupResult = await _backupService.BackupArtifactAsync(item, plan.UninstallSessionId, cancellationToken);
 
             // 3. Verify backup
@@ -101,7 +103,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             if (!verificationResult.IsValid)
             {
                 _logger.LogError("Backup failed or not verified for item {ItemId}. Status: {Status}", item.Id, backupResult.VerificationStatus);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.ValidationFailed;
                 executionResult.FailureReason = $"Backup was not verified: {verificationResult.FailureReason}";
                 result.Results.Add(executionResult);
@@ -110,23 +112,23 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             }
 
             
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.BackupVerified);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.BackupVerified, cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
             {
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Cancelled);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = CleanupSessionStatus.Cancelled;
                 break;
             }
 
             // 4. Final pre-execution validation
             _logger.LogInformation("Starting final validation for item {ItemId}", item.Id);
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.FinalValidating);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.FinalValidating, cancellationToken);
             var finalValidationResult = await _preflightValidator.ValidateAsync(item, application, cancellationToken);
             if (finalValidationResult.Outcome != PreflightValidationOutcome.Authorized)
             {
                 _logger.LogError("Final validation unauthorized for item {ItemId}: {Outcome}", item.Id, finalValidationResult.Outcome);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.ValidationFailed;
                 executionResult.FailureReason = $"Final validation failed (stale state): {finalValidationResult.Outcome}";
                 result.Results.Add(executionResult);
@@ -136,7 +138,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
 
             if (cancellationToken.IsCancellationRequested)
             {
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Cancelled);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Cancelled, CancellationToken.None);
                 result.Status = CleanupSessionStatus.Cancelled;
                 break;
             }
@@ -163,7 +165,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             if (executor == null)
             {
                 _logger.LogError("Missing executor for artifact type {ArtifactType} on item {ItemId}", item.ArtifactType, item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.ValidationFailed;
                 executionResult.FailureReason = $"Unsupported artifact type: {item.ArtifactType}";
                 result.Results.Add(executionResult);
@@ -173,7 +175,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
 
             // 7. Execute
             _logger.LogInformation("Executing item {ItemId} using {ExecutorType}", item.Id, executor.GetType().Name);
-            await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Executing);
+            await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Executing, cancellationToken);
             try
             {
                 // CRITICAL: We pass CancellationToken.None here.
@@ -183,25 +185,25 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
                 var execResult = await executor.ExecuteAsync(context, CancellationToken.None);
                 result.Results.Add(execResult);
                 
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Verifying);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Verifying, CancellationToken.None);
 
                 if (execResult.Success)
                 {
                     _logger.LogInformation("Item {ItemId} executed successfully", item.Id);
-                    await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Succeeded);
+                    await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Succeeded, CancellationToken.None);
                     result.SuccessCount++;
                 }
                 else
                 {
                     _logger.LogError("Item {ItemId} execution failed: {Outcome} - {Reason}", item.Id, execResult.Outcome, execResult.FailureReason);
-                    await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
+                    await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                     result.FailureCount++;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Fatal error executing item {ItemId}", item.Id);
-                await _executionTracker.UpdateStateAsync(item.Id, CleanupItemExecutionState.Failed);
+                await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.DeleteFailed;
                 executionResult.FailureReason = $"Exception during execution: {ex.Message}";
                 result.Results.Add(executionResult);
@@ -227,5 +229,11 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
 
         result.CompletedAt = DateTime.UtcNow;
         return result;
+    }
+
+    private async Task UpdateStateAsync(Guid sessionId, Guid itemId, CleanupItemExecutionState state, CancellationToken cancellationToken)
+    {
+        await _journal.RecordStateAsync(sessionId, itemId, TransactionType.Cleanup, state.ToString(), cancellationToken);
+        await _executionTracker.UpdateStateAsync(itemId, state);
     }
 }

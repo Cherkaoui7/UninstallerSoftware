@@ -13,6 +13,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<LogEntry> Logs => Set<LogEntry>();
     public DbSet<CleanupPlan> CleanupPlans => Set<CleanupPlan>();
     public DbSet<CleanupPlanItem> CleanupPlanItems => Set<CleanupPlanItem>();
+    public DbSet<TransactionJournalEntry> TransactionJournalEntries => Set<TransactionJournalEntry>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -87,5 +88,8 @@ public sealed class AppDbContext : DbContext
             {
                 e.ToJson();
             });
+
+        modelBuilder.Entity<TransactionJournalEntry>()
+            .HasIndex(t => new { t.ItemId, t.SequenceNumber });
     }
 }

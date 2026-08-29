@@ -17,6 +17,8 @@ public static class DependencyInjection
         services.AddScoped<IApplicationRepository, ApplicationRepository>();
         services.AddScoped<IUninstallSessionRepository, UninstallSessionRepository>();
         services.AddScoped<IHistoryRepository, HistoryRepository>();
+        services.AddScoped<ITransactionJournal, TransactionJournal>();
+        services.AddScoped<IReconciliationRepository, ReconciliationRepository>();
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var dbDirectory = Path.Combine(localAppData, "Uninstaller", "Data");

@@ -13,5 +13,8 @@ public enum CleanupItemExecutionState
     Succeeded,
     Failed,
     Skipped,
-    Cancelled
+    Cancelled,
+    Interrupted,
+    Reconciling,
+    Reconciled
 }
