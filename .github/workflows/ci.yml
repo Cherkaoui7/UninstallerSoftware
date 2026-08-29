@@ -26,4 +26,38 @@ jobs:
       run: dotnet build --no-restore
       
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity normal --configuration Release
+
+    - name: Publish (if tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: .\scripts\Publish.ps1 -Version ${GITHUB_REF_NAME#v}
+      
+    - name: Build Installer (if tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: minicomp/iscc-action@v1
+      with:
+        script: installer/Uninstaller.iss
+      env:
+        APP_VERSION: ${{ env.GITHUB_REF_NAME_TRIMMED }}
+        
+    - name: Prepare Checksums (if tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        $Version = $env:GITHUB_REF_NAME.Substring(1)
+        $PublishDir = "Publish"
+        $ArtifactDir = "Artifacts"
+        if (-not (Test-Path $ArtifactDir)) { New-Item -ItemType Directory -Force $ArtifactDir }
+        Compress-Archive -Path "$PublishDir\*" -DestinationPath "$ArtifactDir\Uninstaller-$Version-win-x64.zip"
+        cd $ArtifactDir
+        $Files = Get-ChildItem -File
+        foreach ($File in $Files) {
+            $Hash = (Get-FileHash $File.FullName -Algorithm SHA256).Hash
+            "$Hash  $($File.Name)" | Out-File -Append -Encoding utf8 "checksums.txt"
+        }
+
+    - name: Upload Artifacts (if tag)
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-artifact@v4
+      with:
+        name: Uninstaller-Release-${{ github.ref_name }}
+        path: Artifacts\*

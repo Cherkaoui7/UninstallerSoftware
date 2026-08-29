@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <Version Condition="'$(Version)' == ''">0.19.0</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+    <InformationalVersion>$(Version)</InformationalVersion>
+    
+    <!-- Shared properties for all projects -->
+    <Authors>Uninstaller Team</Authors>
+    <Company>Uninstaller</Company>
+    <Product>Uninstaller</Product>
+    <Copyright>Copyright © 2026</Copyright>
+  </PropertyGroup>
+</Project>
