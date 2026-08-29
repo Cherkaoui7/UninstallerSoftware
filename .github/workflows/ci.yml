@@ -40,6 +40,12 @@ jobs:
       env:
         APP_VERSION: ${{ env.GITHUB_REF_NAME_TRIMMED }}
         
+    # - name: Sign Executable (if tag)
+    #   if: startsWith(github.ref, 'refs/tags/v') && secrets.CODE_SIGN_CERT != ''
+    #   run: |
+    #     # Placeholder for signtool using ${{ secrets.CODE_SIGN_CERT }} and ${{ secrets.CODE_SIGN_PASSWORD }}
+    #     # Signtool /f cert.pfx /p password /tr http://timestamp.digicert.com /td sha256 /fd sha256 "Publish\Uninstaller.App.exe"
+        
     - name: Prepare Checksums (if tag)
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
