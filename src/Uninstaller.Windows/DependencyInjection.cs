@@ -17,6 +17,13 @@ public static class DependencyInjection
     {
         services.AddTransient<IRegistryService, WindowsRegistryService>();
         services.AddTransient<IFileSystemService, WindowsFileSystemService>();
+        services.AddTransient<System.IO.Abstractions.IFileSystem, System.IO.Abstractions.FileSystem>();
+        services.AddTransient<Uninstaller.Windows.Filesystem.IShortcutProvider, Uninstaller.Windows.Filesystem.ShortcutProvider>();
+        services.AddTransient<IShortcutService, Uninstaller.Windows.FileSystem.WindowsShortcutService>();
+        services.AddTransient<Uninstaller.Windows.Registry.IRegistryProvider, Uninstaller.Windows.Registry.RegistryProvider>();
+        services.AddScoped<IResidualScanner, Uninstaller.Windows.Registry.WindowsRegistryScanner>();
+        services.AddScoped<IResidualScanner, Uninstaller.Windows.Filesystem.WindowsFilesystemScanner>();
+        services.AddScoped<IResidualScanner, Uninstaller.Windows.Filesystem.WindowsShortcutScanner>();
         services.AddTransient<IProcessService, WindowsProcessService>();
         services.AddTransient<IServiceManager, WindowsServiceManager>();
         services.AddTransient<ITaskScheduler, WindowsTaskScheduler>();

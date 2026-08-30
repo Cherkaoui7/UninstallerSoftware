@@ -20,9 +20,11 @@ public class NavigationService : ObservableObject, INavigationService
         private set => SetProperty(ref _currentViewModel, value);
     }
 
-    public void NavigateTo<TViewModel>() where TViewModel : ObservableObject
+    public TViewModel NavigateTo<TViewModel>() where TViewModel : ObservableObject
     {
-        CurrentViewModel = _serviceProvider.GetRequiredService<TViewModel>();
+        var vm = _serviceProvider.GetRequiredService<TViewModel>();
+        CurrentViewModel = vm;
+        return vm;
     }
 
     public void NavigateTo(ObservableObject viewModel)

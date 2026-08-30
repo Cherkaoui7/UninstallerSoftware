@@ -21,6 +21,14 @@ public class UninstallSessionRepository : IUninstallSessionRepository
         return await _context.UninstallSessions.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
+    public async Task<UninstallSession?> GetLatestByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken)
+    {
+        return await _context.UninstallSessions
+            .Where(s => s.ApplicationId == applicationId)
+            .OrderByDescending(s => s.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task SaveAsync(UninstallSession session, CancellationToken cancellationToken)
     {
         var existing = await _context.UninstallSessions.FindAsync(new object[] { session.Id }, cancellationToken);

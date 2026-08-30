@@ -500,3 +500,17 @@ cache/
 # Local .NET SDK
 .dotnet/
 mockup/uninstaller_dashboard_mockup_1787838966449.jpg
+
+# Scratch tests and outputs
+CheckFS/
+ParserTest/
+TestCrash/
+TestParse/
+TestParse.cs
+check.ps1
+check_types.ps1
+out/
+publish-*/
+publish_out/
+test.cs
+

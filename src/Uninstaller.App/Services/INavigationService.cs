@@ -5,6 +5,6 @@ namespace Uninstaller.App.Services;
 public interface INavigationService : System.ComponentModel.INotifyPropertyChanged
 {
     ObservableObject? CurrentViewModel { get; }
-    void NavigateTo<TViewModel>() where TViewModel : ObservableObject;
+    TViewModel NavigateTo<TViewModel>() where TViewModel : ObservableObject;
     void NavigateTo(ObservableObject viewModel);
 }

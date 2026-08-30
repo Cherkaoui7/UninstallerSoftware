@@ -1,4 +1,7 @@
 using System;
+using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
+using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Models;
 using Uninstaller.Core.Services;
 using Uninstaller.Domain.Entities;
@@ -8,11 +11,15 @@ namespace Uninstaller.Core.Tests.Services;
 
 public class CommandParserTests
 {
+    private readonly Mock<IFileSystemService> _fileSystemMock;
     private readonly CommandParser _parser;
 
     public CommandParserTests()
     {
-        _parser = new CommandParser();
+        _fileSystemMock = new Mock<IFileSystemService>();
+        // Default to file exists so existing tests don't break
+        _fileSystemMock.Setup(fs => fs.FileExists(It.IsAny<string>())).Returns(true);
+        _parser = new CommandParser(_fileSystemMock.Object, NullLogger<CommandParser>.Instance);
     }
 
     [Fact]
@@ -163,5 +170,42 @@ public class CommandParserTests
         Assert.True(_parser.Parse(hklmApp).RequiresElevation);
         Assert.False(_parser.Parse(hkcuApp).RequiresElevation);
         Assert.False(_parser.Parse(appDataApp).RequiresElevation);
+    }
+
+    [Fact]
+    public void Parse_QuotedExecutablePath_NoArguments_ParsesCorrectly()
+    {
+        var app = new Application
+        {
+            UninstallCommand = "\"C:\\Program Files\\App\\AppUninstaller.exe\""
+        };
+        var result = _parser.Parse(app);
+        Assert.Equal("C:\\Program Files\\App\\AppUninstaller.exe", result.ExecutablePath);
+        Assert.Null(result.Arguments);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Parse_QuotedExecutablePath_WithArguments_ParsesCorrectly()
+    {
+        var app = new Application
+        {
+            UninstallCommand = "\"C:\\Program Files\\App\\AppUninstaller.exe\" /silent /cleanup"
+        };
+        var result = _parser.Parse(app);
+        Assert.Equal("C:\\Program Files\\App\\AppUninstaller.exe", result.ExecutablePath);
+        Assert.Equal("/silent /cleanup", result.Arguments);
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Parse_MissingExecutable_ReturnsMissing()
+    {
+        _fileSystemMock.Setup(fs => fs.FileExists("C:\\App\\Missing.exe")).Returns(false);
+        var app = new Application { UninstallCommand = "\"C:\\App\\Missing.exe\" /S" };
+        var result = _parser.Parse(app);
+        
+        Assert.Equal(ExecutionType.Missing, result.ExecutionType);
+        Assert.False(result.IsValid);
     }
 }

@@ -1,2 +1,103 @@
 using Uninstaller.Core.Models;
-using System; using System.Collections.Generic; using System.Threading; using System.Threading.Tasks; using Moq; using Uninstaller.Core.Abstractions; using Uninstaller.Domain.Entities; using Uninstaller.App.ViewModels; using Uninstaller.App.Services; using Uninstaller.App.Enums; using Xunit;  namespace Uninstaller.App.Tests.ViewModels;  public class ApplicationsViewModelTests {     private readonly Mock<IDiscoveryService> _mockDiscovery;     private readonly Mock<IApplicationRepository> _mockRepo;     private readonly Mock<INavigationService> _mockNav;     private readonly Mock<IErrorBoundaryService> _mockError;      public ApplicationsViewModelTests()     {         _mockDiscovery = new Mock<IDiscoveryService>();         _mockRepo = new Mock<IApplicationRepository>();         _mockNav = new Mock<INavigationService>();         _mockError = new Mock<IErrorBoundaryService>();     }      [Fact]     public async Task InitializeAsync_LoadsApplications_SetsStateToReady()     {         _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))             .ReturnsAsync(new List<Application> { new Application { Id = Guid.NewGuid(), Name = "Test App", IsPresent = true } });          var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);                  await vm.InitializeAsync();          Assert.Equal(UIState.Ready, vm.State);         Assert.Single(vm.Applications);     }      [Fact]     public async Task ScanAsync_Success_SetsStateToSuccess()     {         _mockDiscovery.Setup(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()))             .ReturnsAsync(new DiscoveryResult { ApplicationsDiscovered = 5 });                      _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))             .ReturnsAsync(new List<Application>());          var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);                  await vm.ScanCommand.ExecuteAsync(null);          Assert.Equal(UIState.Success, vm.State);     }          [Fact]     public void Filter_WithSearchText_FiltersCollection()     {         var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);         vm.Applications.Add(new ApplicationViewModel(new Application { Name = "Test App A", Publisher = "Pub A", IsPresent = true }));         vm.Applications.Add(new ApplicationViewModel(new Application { Name = "Other App", Publisher = "Pub B", IsPresent = true }));                  vm.SearchText = "Test";                  var count = 0;         foreach (var item in vm.ApplicationsView) count++;                  Assert.Equal(1, count);     } }
+using System; 
+using System.Collections.Generic; 
+using System.Threading; 
+using System.Threading.Tasks; 
+using Moq; 
+using Uninstaller.Core.Abstractions; 
+using Uninstaller.Domain.Entities; 
+using Uninstaller.App.ViewModels; 
+using Uninstaller.App.Services; 
+using Uninstaller.App.Enums; 
+using Xunit;namespace Uninstaller.App.Tests.ViewModels;
+
+public class ApplicationsViewModelTests
+{
+    private readonly Mock<IDiscoveryService> _mockDiscovery;
+    private readonly Mock<IApplicationRepository> _mockRepo;
+    private readonly Mock<INavigationService> _mockNav;
+    private readonly Mock<IErrorBoundaryService> _mockError;    public ApplicationsViewModelTests()
+    {
+        _mockDiscovery = new Mock<IDiscoveryService>();
+        _mockRepo = new Mock<IApplicationRepository>();
+        _mockNav = new Mock<INavigationService>();
+        _mockError = new Mock<IErrorBoundaryService>();
+    }    [Fact]
+    public async Task InitializeAsync_LoadsApplications_SetsStateToReady()
+    {
+        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Application> { new Application { Id = Guid.NewGuid(), Name = "Test App", IsPresent = true } });
+
+        var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);
+        
+        await vm.InitializeAsync();
+        
+        Assert.Equal(UIState.Ready, vm.State);
+        Assert.Single(vm.Applications);
+    }    [Fact]
+    public async Task ScanAsync_Success_SetsStateToSuccess()
+    {
+        _mockDiscovery.Setup(d => d.DiscoverApplicationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DiscoveryResult { ApplicationsDiscovered = 5 });
+            
+        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Application>());
+
+        var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);
+        
+        await vm.ScanCommand.ExecuteAsync(null);
+        
+        Assert.Equal(UIState.Success, vm.State);
+    }    [Fact]
+    public void Filter_WithSearchText_FiltersCollection()
+    {
+        var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);
+        vm.Applications.Add(new ApplicationViewModel(new Application { Name = "Test App A", Publisher = "Pub A", IsPresent = true }));
+        vm.Applications.Add(new ApplicationViewModel(new Application { Name = "Other App", Publisher = "Pub B", IsPresent = true }));
+        
+        vm.SearchText = "Test";
+        
+        var count = 0;
+        foreach (var item in vm.ApplicationsView) count++;
+        
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void ViewDetails_WithSelectedApplication_PassesApplicationToDetailsViewModel()
+    {
+        var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);
+        var appVm = new ApplicationViewModel(new Application { Id = Guid.NewGuid(), Name = "Target App", IsPresent = true });
+        vm.SelectedApplication = appVm;
+
+        var detailsVm = new ApplicationDetailsViewModel(
+            Mock.Of<IUninstallService>(),
+            Mock.Of<IResidualAnalysisService>(),
+            _mockRepo.Object,
+            Mock.Of<IUninstallSessionRepository>(),
+            _mockNav.Object,
+            Mock.Of<IServiceProvider>(),
+            _mockError.Object);
+
+        _mockNav.Setup(n => n.NavigateTo<ApplicationDetailsViewModel>()).Returns(detailsVm);
+
+        vm.ViewDetailsCommand.Execute(null);
+
+        Assert.NotNull(detailsVm.Application);
+        Assert.Equal(appVm.Id, detailsVm.Application.Id);
+    }
+
+    [Fact]
+    public void DetailsView_NoSelection_DoesNotNavigate()
+    {
+        var vm = new ApplicationsViewModel(_mockDiscovery.Object, _mockRepo.Object, _mockNav.Object, _mockError.Object);
+        vm.SelectedApplication = null;
+
+        Assert.False(vm.ViewDetailsCommand.CanExecute(null));
+        
+        // Execute manually to ensure it bails out
+        vm.ViewDetailsCommand.Execute(null);
+
+        _mockNav.Verify(n => n.NavigateTo<ApplicationDetailsViewModel>(), Times.Never);
+    }
+}

@@ -158,10 +158,10 @@ public partial class ApplicationsViewModel : ViewModelBase
     [RelayCommand(CanExecute = nameof(CanViewDetails))]
     private void ViewDetails()
     {
-        // For Phase 5A MVP, we just navigate to the details view and it could fetch the state
-        // Ideally we would pass the ID or the ViewModel itself. Since INavigationService is simple,
-        // we'll store it in a shared state or expand the navigation service later.
-        // For now, assume it's wired.
-        _navigationService.NavigateTo<ApplicationDetailsViewModel>();
+        if (SelectedApplication != null)
+        {
+            var detailsVm = _navigationService.NavigateTo<ApplicationDetailsViewModel>();
+            detailsVm.LoadApplication(SelectedApplication);
+        }
     }
 }

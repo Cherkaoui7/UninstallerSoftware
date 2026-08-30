@@ -14,6 +14,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
     private readonly IUninstallService _uninstallService;
     private readonly IResidualAnalysisService _analysisService;
     private readonly IApplicationRepository _repository;
+    private readonly IUninstallSessionRepository _sessionRepository;
     private readonly INavigationService _navigationService;
     private readonly IServiceProvider _serviceProvider;
     private CancellationTokenSource? _cancellationTokenSource;
@@ -22,6 +23,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
         IUninstallService uninstallService,
         IResidualAnalysisService analysisService,
         IApplicationRepository repository,
+        IUninstallSessionRepository sessionRepository,
         INavigationService navigationService,
         IServiceProvider serviceProvider,
         IErrorBoundaryService errorBoundary) : base(errorBoundary)
@@ -29,6 +31,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
         _uninstallService = uninstallService;
         _analysisService = analysisService;
         _repository = repository;
+        _sessionRepository = sessionRepository;
         _navigationService = navigationService;
         _serviceProvider = serviceProvider;
         
@@ -36,12 +39,16 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
     }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UninstallCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AnalyzeResidualsCommand))]
     private ApplicationViewModel? _application;
 
     public void LoadApplication(ApplicationViewModel app)
     {
         Application = app;
         State = UIState.Ready;
+        UninstallCommand.NotifyCanExecuteChanged();
+        AnalyzeResidualsCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanUninstall() => Application != null && State != UIState.Working && State != UIState.Loading;
@@ -117,7 +124,14 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
                 return;
             }
 
-            var session = await _analysisService.RunAnalysisAsync(new Uninstaller.Domain.Entities.UninstallSession(), appEntity, _cancellationTokenSource.Token);
+            var latestSession = await _sessionRepository.GetLatestByApplicationIdAsync(appEntity.Id, _cancellationTokenSource.Token);
+            if (latestSession == null || latestSession.Status != Uninstaller.Domain.Enums.UninstallSessionStatus.Completed)
+            {
+                SetError("Residual analysis requires a completed uninstall.");
+                return;
+            }
+
+            var session = await _analysisService.RunAnalysisAsync(latestSession, appEntity, _cancellationTokenSource.Token);
             
             if (session.Plan != null)
             {

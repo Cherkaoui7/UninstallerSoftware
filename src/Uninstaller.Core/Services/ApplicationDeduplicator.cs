@@ -83,13 +83,13 @@ public class ApplicationDeduplicator : IApplicationDeduplicator
 
     private void Merge(Application target, Application source)
     {
-        target.Version ??= source.Version;
-        target.Publisher ??= source.Publisher;
-        target.InstallLocation ??= source.InstallLocation;
-        target.UninstallCommand ??= source.UninstallCommand;
-        target.QuietUninstallCommand ??= source.QuietUninstallCommand;
-        target.EstimatedSize ??= source.EstimatedSize;
-        target.InstallDate ??= source.InstallDate;
+        target.Version = source.Version ?? target.Version;
+        target.Publisher = source.Publisher ?? target.Publisher;
+        target.InstallLocation = source.InstallLocation ?? target.InstallLocation;
+        target.UninstallCommand = source.UninstallCommand ?? target.UninstallCommand;
+        target.QuietUninstallCommand = source.QuietUninstallCommand ?? target.QuietUninstallCommand;
+        target.EstimatedSize = source.EstimatedSize ?? target.EstimatedSize;
+        target.InstallDate = source.InstallDate ?? target.InstallDate;
 
         target.IsSystemComponent = target.IsSystemComponent || source.IsSystemComponent;
         target.IsWindowsInstaller = target.IsWindowsInstaller || source.IsWindowsInstaller;

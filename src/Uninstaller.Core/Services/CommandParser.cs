@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Models;
 using Uninstaller.Domain.Entities;
@@ -8,23 +9,38 @@ namespace Uninstaller.Core.Services;
 
 public class CommandParser : ICommandParser
 {
+    private readonly IFileSystemService _fileSystem;
+    private readonly ILogger<CommandParser> _logger;
+
+    public CommandParser(IFileSystemService fileSystem, ILogger<CommandParser> logger)
+    {
+        _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
     public StructuredCommand Parse(Application application)
     {
         if (application == null) throw new ArgumentNullException(nameof(application));
 
         if (string.IsNullOrWhiteSpace(application.UninstallCommand) && string.IsNullOrWhiteSpace(application.QuietUninstallCommand))
         {
+            _logger.LogWarning("App {AppName}: Both UninstallCommand and QuietUninstallCommand are empty.", application.Name);
             return new StructuredCommand { ExecutionType = ExecutionType.Missing };
         }
 
         var isQuiet = !string.IsNullOrWhiteSpace(application.QuietUninstallCommand);
         var rawCommand = isQuiet ? application.QuietUninstallCommand! : application.UninstallCommand!;
 
+        _logger.LogInformation("App {AppName}: Parsing raw command: {Command}. IsQuiet: {IsQuiet}", application.Name, rawCommand, isQuiet);
+
         var parsed = ParseRawString(rawCommand);
         parsed.OriginalCommand = rawCommand;
         
+        _logger.LogInformation("App {AppName}: Extracted ExecutablePath: '{ExecutablePath}', Arguments: '{Arguments}'", application.Name, parsed.ExecutablePath, parsed.Arguments);
+
         if (string.IsNullOrWhiteSpace(parsed.ExecutablePath))
         {
+            _logger.LogWarning("App {AppName}: ExecutablePath was null or whitespace after parsing.", application.Name);
             parsed.ExecutionType = ExecutionType.Unknown;
             return parsed;
         }
@@ -32,7 +48,18 @@ public class CommandParser : ICommandParser
         // Security check: Reject powershell and cmd
         if (IsBlockedExecutable(parsed.ExecutablePath))
         {
+            _logger.LogWarning("App {AppName}: ExecutablePath '{ExecutablePath}' is a blocked executable.", application.Name, parsed.ExecutablePath);
             parsed.ExecutionType = ExecutionType.Unknown;
+            return parsed;
+        }
+
+        // Validate that the extracted executable actually exists on the filesystem
+        bool fileExists = _fileSystem.FileExists(parsed.ExecutablePath);
+        _logger.LogInformation("App {AppName}: FileExists check for '{ExecutablePath}' returned {Exists}.", application.Name, parsed.ExecutablePath, fileExists);
+
+        if (!fileExists)
+        {
+            parsed.ExecutionType = ExecutionType.Missing;
             return parsed;
         }
 
@@ -57,6 +84,8 @@ public class CommandParser : ICommandParser
         {
             parsed.RequiresElevation = false;
         }
+
+        _logger.LogInformation("App {AppName}: Command validation successful. ExecutionType: {ExecutionType}, IsValid: {IsValid}", application.Name, parsed.ExecutionType, parsed.IsValid);
 
         return parsed;
     }
@@ -87,7 +116,7 @@ public class CommandParser : ICommandParser
             var endQuoteIndex = command.IndexOf("\"", 1);
             if (endQuoteIndex > 0)
             {
-                result.ExecutablePath = command.Substring(1, endQuoteIndex - 1);
+                result.ExecutablePath = command.Substring(1, endQuoteIndex - 1).Trim();
                 if (endQuoteIndex + 1 < command.Length)
                 {
                     result.Arguments = command.Substring(endQuoteIndex + 1).Trim();

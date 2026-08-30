@@ -20,6 +20,9 @@ public static class DependencyInjection
         services.AddScoped<IRecoveryTransactionEngine, RecoveryTransactionEngine>();
         services.AddScoped<ICleanupPreflightValidator, CleanupPreflightValidator>();
         services.AddScoped<IResidualAnalysisService, ResidualAnalysisService>();
+        services.AddScoped<IEvidenceEngine, EvidenceEngine>();
+        services.AddScoped<ICleanupPlanGenerator, CleanupPlanGenerator>();
+        services.AddScoped<IRecoveryExecutorResolver, RecoveryExecutorResolver>();
         services.AddScoped<IStartupRecoveryService, StartupRecoveryService>();
 
         return services;
