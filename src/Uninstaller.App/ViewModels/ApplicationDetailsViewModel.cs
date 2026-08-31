@@ -51,7 +51,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
         AnalyzeResidualsCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanUninstall() => Application != null && State != UIState.Working && State != UIState.Loading;
+    private bool CanUninstall() => Application != null && Application.IsPresent && State != UIState.Working && State != UIState.Loading;
 
     [RelayCommand(CanExecute = nameof(CanUninstall))]
     private async Task UninstallAsync()
@@ -76,9 +76,10 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
 
             if (session.Status == Uninstaller.Domain.Enums.UninstallSessionStatus.Completed)
             {
+                Application.IsPresent = false;
+                Application.UninstallStatus = "Uninstalled";
                 State = UIState.Success;
-                StatusMessage = $"Successfully uninstalled {Application.Name}.";
-                
+                StatusMessage = $"Successfully uninstalled {Application.Name}. You can now analyze residuals.";
             }
             else
             {

@@ -1,0 +1,17 @@
+{
+  "commit": "bee3faf73c137cc6b68bce5dc8ce1094f5ce5d99",
+  "build": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "tests": {
+    "total": 287,
+    "passed": 287,
+    "failed": 0,
+    "skipped": 0
+  },
+  "defects": [],
+  "security_findings": [],
+  "e2e_status": "PENDING",
+  "release_status": "PENDING"
+}

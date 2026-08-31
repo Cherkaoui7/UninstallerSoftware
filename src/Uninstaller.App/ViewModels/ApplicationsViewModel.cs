@@ -56,7 +56,6 @@ public partial class ApplicationsViewModel : ViewModelBase
     private bool FilterApplications(object obj)
     {
         if (obj is not ApplicationViewModel app) return false;
-        if (!app.IsPresent) return false;
         
         if (string.IsNullOrWhiteSpace(SearchText)) return true;
 

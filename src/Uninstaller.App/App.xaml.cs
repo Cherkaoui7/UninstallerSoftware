@@ -18,6 +18,11 @@ public partial class App : Application
     public App()
     {
         _host = Host.CreateDefaultBuilder()
+            .UseDefaultServiceProvider((context, options) =>
+            {
+                options.ValidateScopes = true;
+                options.ValidateOnBuild = true;
+            })
             .ConfigureServices((context, services) =>
             {
                 services.AddCore();
@@ -34,13 +39,11 @@ public partial class App : Application
                 services.AddSingleton<Services.IErrorBoundaryService, Services.ErrorBoundaryService>();
                 services.AddSingleton<Services.INavigationService, Services.NavigationService>();
                 
-                // ViewModels
+                // ViewModels resolved directly via DI
                 services.AddTransient<ViewModels.MainViewModel>();
                 services.AddTransient<ViewModels.DashboardViewModel>();
                 services.AddTransient<ViewModels.ApplicationsViewModel>();
                 services.AddTransient<ViewModels.ApplicationDetailsViewModel>();
-                services.AddTransient<ViewModels.CleanupPlanViewModel>();
-                services.AddTransient<ViewModels.CleanupExecutionViewModel>();
                 services.AddTransient<ViewModels.RecoveryViewModel>();
                 services.AddTransient<ViewModels.HistoryViewModel>();
                 services.AddTransient<ViewModels.SettingsViewModel>();

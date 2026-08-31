@@ -25,12 +25,35 @@ public partial class ApplicationViewModel : ObservableObject
     
     public string RegistrySource => _application.RegistrySource;
     
-    public bool IsPresent => _application.IsPresent;
+    public bool IsPresent
+    {
+        get => _application.IsPresent;
+        set
+        {
+            if (_application.IsPresent != value)
+            {
+                _application.IsPresent = value;
+                OnPropertyChanged(nameof(IsPresent));
+                OnPropertyChanged(nameof(UninstallStatus));
+            }
+        }
+    }
     
     [ObservableProperty]
     private bool _isUninstalling;
 
-    [ObservableProperty]
+    public string UninstallStatus
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(_uninstallStatus)) return _uninstallStatus;
+            return IsPresent ? "Installed" : "Uninstalled";
+        }
+        set
+        {
+            SetProperty(ref _uninstallStatus, value);
+        }
+    }
     private string _uninstallStatus = string.Empty;
     
     public DateTime LastSeen => _application.LastSeen;
