@@ -76,7 +76,7 @@ public class ApplicationsViewModelTests
             _mockRepo.Object,
             Mock.Of<IUninstallSessionRepository>(),
             _mockNav.Object,
-            Mock.Of<IServiceProvider>(),
+            Mock.Of<ICleanupViewModelFactory>(),
             _mockError.Object);
 
         _mockNav.Setup(n => n.NavigateTo<ApplicationDetailsViewModel>()).Returns(detailsVm);

@@ -86,8 +86,6 @@ public class PostUninstallResidualAnalysisIntegrationTests
     private readonly Mock<IUninstallService> _uninstallServiceMock = new();
     private readonly Mock<IResidualAnalysisService> _residualAnalysisServiceMock = new();
     private readonly Mock<IDiscoveryService> _discoveryServiceMock = new();
-    private readonly IServiceProvider _serviceProvider;
-
     private readonly Mock<ICleanupViewModelFactory> _cleanupFactoryMock = new();
 
     public PostUninstallResidualAnalysisIntegrationTests()

@@ -176,7 +176,7 @@ public class DependencyInjectionValidationTests
             {
                 Id = Guid.NewGuid(),
                 Path = targetFile,
-                Type = ArtifactType.File,
+                ArtifactType = ArtifactType.File,
                 Classification = ArtifactClassification.UserData,
                 RiskLevel = RiskLevel.Low,
                 Recommended = true
@@ -258,7 +258,7 @@ public class DependencyInjectionValidationTests
                 {
                     Id = Guid.NewGuid(),
                     Path = file,
-                    Type = ArtifactType.File,
+                    ArtifactType = ArtifactType.File,
                     RiskLevel = RiskLevel.Low,
                     Recommended = true
                 };
