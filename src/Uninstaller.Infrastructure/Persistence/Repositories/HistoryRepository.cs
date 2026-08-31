@@ -43,7 +43,6 @@ public class HistoryRepository : IHistoryRepository
 
         // 2. Official Uninstalls
         var sessions = await _context.UninstallSessions.AsNoTracking()
-            .Include(s => _context.Applications.FirstOrDefault(a => a.Id == s.ApplicationId))
             .OrderByDescending(s => s.StartedAt)
             .Take(limit)
             .ToListAsync(cancellationToken);

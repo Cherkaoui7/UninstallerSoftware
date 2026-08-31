@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Uninstaller.App.ViewModels;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Domain.Entities;
@@ -32,6 +33,7 @@ public class CleanupViewModelFactory : ICleanupViewModelFactory
             var tracker = scope.ServiceProvider.GetRequiredService<IObservableItemExecutionTracker>();
             var navService = scope.ServiceProvider.GetRequiredService<INavigationService>();
             var errorBoundary = scope.ServiceProvider.GetRequiredService<IErrorBoundaryService>();
+            var logger = scope.ServiceProvider.GetService<ILogger<CleanupExecutionViewModel>>();
 
             return new CleanupExecutionViewModel(
                 plan,
@@ -41,7 +43,8 @@ public class CleanupViewModelFactory : ICleanupViewModelFactory
                 tracker,
                 navService,
                 errorBoundary,
-                scope);
+                scope,
+                logger);
         }
         catch
         {

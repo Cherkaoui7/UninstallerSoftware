@@ -46,6 +46,13 @@ public class ProductionCleanupSafetyPipelineTests
         services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
         services.AddSingleton<IHistoryViewModelFactory, HistoryViewModelFactory>();
 
+        services.AddTransient<HistoryViewModel>();
+        services.AddTransient<MainViewModel>();
+        services.AddTransient<DashboardViewModel>();
+        services.AddTransient<ApplicationsViewModel>();
+        services.AddTransient<RecoveryViewModel>();
+        services.AddTransient<SettingsViewModel>();
+
         // Logging
         services.AddLogging(builder => builder.AddDebug());
 
@@ -596,5 +603,228 @@ public class ProductionCleanupSafetyPipelineTests
                 try { Directory.Delete(telegramDir, true); } catch { }
             }
         }
+    }
+
+    [Fact]
+    public async Task Req19_FinishCommand_AfterSuccessfulCleanup_NavigatesToHistoryAndLoadsSessions()
+    {
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerSafetyTests");
+        var appDataDir = Path.Combine(testBase, "AppData", "Roaming");
+        var appDir = Path.Combine(appDataDir, "FinishNavApp");
+        Directory.CreateDirectory(appDir);
+        var file = Path.Combine(appDir, "file.bin");
+        File.WriteAllText(file, "123");
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+            var navService = provider.GetRequiredService<INavigationService>();
+
+            var app = new Application
+            {
+                Id = Guid.NewGuid(),
+                Name = "FinishNavApp",
+                InstallLocation = appDir
+            };
+
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = UninstallSessionStatus.Completed,
+                StartedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(app);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
+            }
+
+            var planItem = new CleanupPlanItem
+            {
+                Id = Guid.NewGuid(),
+                Path = appDir,
+                ArtifactType = ArtifactType.Directory,
+                Classification = ArtifactClassification.ApplicationOwned,
+                RiskLevel = RiskLevel.Low,
+                Recommended = true
+            };
+
+            var plan = new CleanupPlan
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                UninstallSessionId = session.Id,
+                CreatedAt = DateTime.UtcNow,
+                Items = new List<CleanupPlanItem> { planItem }
+            };
+
+            using (var planScope = provider.CreateScope())
+            {
+                var db = planScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.CleanupPlans.Add(plan);
+                await db.SaveChangesAsync();
+            }
+
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+            using var execVm = cleanupFactory.CreateExecutionViewModel(plan, app, new[] { planItem.Id });
+
+            // Initially before execution, CanFinish is false
+            Assert.False(execVm.CanFinish);
+
+            await execVm.StartExecutionAsync();
+
+            // After execution succeeds, CanFinish is true
+            Assert.True(execVm.CanFinish);
+            Assert.True(execVm.FinishCommand.CanExecute(null));
+
+            // Execute Finish command
+            execVm.FinishCommand.Execute(null);
+
+            // Assert navigation occurred to HistoryViewModel
+            Assert.NotNull(navService.CurrentViewModel);
+            Assert.IsType<HistoryViewModel>(navService.CurrentViewModel);
+
+            var historyVm = (HistoryViewModel)navService.CurrentViewModel;
+            await historyVm.InitializeAsync();
+
+            Assert.NotEmpty(historyVm.Activities);
+            Assert.Contains(historyVm.Activities, a => a.SessionId == session.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(appDir))
+            {
+                try { Directory.Delete(appDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Req20_FinishCommand_AfterFailedCleanup_CanExecuteReturnsTrueAndNavigates()
+    {
+        var provider = CreateProductionServiceProvider();
+        var navService = provider.GetRequiredService<INavigationService>();
+
+        var app = new Application { Id = Guid.NewGuid(), Name = "FailedApp" };
+        var session = new UninstallSession { Id = Guid.NewGuid(), ApplicationId = app.Id, Status = UninstallSessionStatus.Completed };
+
+        using (var initScope = provider.CreateScope())
+        {
+            var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.EnsureCreatedAsync();
+            db.Applications.Add(app);
+            db.UninstallSessions.Add(session);
+            await db.SaveChangesAsync();
+        }
+
+        var missingDir = @"C:\NonExistentDirectory_" + Guid.NewGuid().ToString("N");
+        var planItem = new CleanupPlanItem
+        {
+            Id = Guid.NewGuid(),
+            Path = missingDir,
+            ArtifactType = ArtifactType.Directory,
+            Classification = ArtifactClassification.ApplicationOwned,
+            RiskLevel = RiskLevel.Low,
+            Recommended = true
+        };
+
+        var plan = new CleanupPlan
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            UninstallSessionId = session.Id,
+            Items = new List<CleanupPlanItem> { planItem }
+        };
+
+        var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+        using var execVm = cleanupFactory.CreateExecutionViewModel(plan, app, new[] { planItem.Id });
+
+        await execVm.StartExecutionAsync();
+
+        // Execution failed/completed with failures, CanFinish MUST still be true
+        Assert.True(execVm.CanFinish);
+        Assert.True(execVm.FinishCommand.CanExecute(null));
+
+        execVm.FinishCommand.Execute(null);
+
+        Assert.NotNull(navService.CurrentViewModel);
+        Assert.IsType<HistoryViewModel>(navService.CurrentViewModel);
+    }
+
+    [Fact]
+    public async Task Req21_FinishCommand_RepeatedClicks_GuardedAgainstDuplicateNavigation()
+    {
+        var provider = CreateProductionServiceProvider();
+        var navService = provider.GetRequiredService<INavigationService>();
+
+        var app = new Application { Id = Guid.NewGuid(), Name = "GuardedApp" };
+        var session = new UninstallSession { Id = Guid.NewGuid(), ApplicationId = app.Id, Status = UninstallSessionStatus.Completed };
+
+        var plan = new CleanupPlan
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            UninstallSessionId = session.Id,
+            Items = new List<CleanupPlanItem>()
+        };
+
+        var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+        using var execVm = cleanupFactory.CreateExecutionViewModel(plan, app, Array.Empty<Guid>());
+
+        // Manually mark state to Success
+        execVm.State = Enums.UIState.Success;
+        Assert.True(execVm.CanFinish);
+
+        // Click once
+        execVm.FinishCommand.Execute(null);
+        var firstVm = navService.CurrentViewModel;
+        Assert.NotNull(firstVm);
+        Assert.IsType<HistoryViewModel>(firstVm);
+
+        // CanFinish is now false to prevent duplicate navigation
+        Assert.False(execVm.CanFinish);
+
+        // Click second time
+        execVm.FinishCommand.Execute(null);
+        Assert.Same(firstVm, navService.CurrentViewModel);
+    }
+
+    [Fact]
+    public async Task Req22_FinishCommand_AfterCleanupVmDisposal_MaintainsValidHistoryScope()
+    {
+        var provider = CreateProductionServiceProvider();
+        var navService = provider.GetRequiredService<INavigationService>();
+
+        var app = new Application { Id = Guid.NewGuid(), Name = "DisposalApp" };
+        var session = new UninstallSession { Id = Guid.NewGuid(), ApplicationId = app.Id, Status = UninstallSessionStatus.Completed };
+
+        var plan = new CleanupPlan
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            UninstallSessionId = session.Id,
+            Items = new List<CleanupPlanItem>()
+        };
+
+        var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+        var execVm = cleanupFactory.CreateExecutionViewModel(plan, app, Array.Empty<Guid>());
+        execVm.State = Enums.UIState.Success;
+
+        execVm.FinishCommand.Execute(null);
+        var historyVm = navService.CurrentViewModel as HistoryViewModel;
+        Assert.NotNull(historyVm);
+
+        // Dispose the cleanup ViewModel (and its internal execution scope)
+        execVm.Dispose();
+
+        // History ViewModel and its scope remain fully functional
+        await historyVm.InitializeAsync();
+        Assert.NotNull(historyVm.Activities);
     }
 }

@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Uninstaller.App.Services;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Models.History;
@@ -17,6 +19,7 @@ public partial class HistoryViewModel : ViewModelBase
     private readonly IHistoryRepository _historyRepository;
     private readonly INavigationService _navigationService;
     private readonly IHistoryViewModelFactory _historyViewModelFactory;
+    private readonly ILogger<HistoryViewModel> _logger;
 
     [ObservableProperty]
     private ObservableCollection<HistoryActivity> _activities = new();
@@ -31,13 +34,17 @@ public partial class HistoryViewModel : ViewModelBase
         IErrorBoundaryService errorBoundary, 
         IHistoryRepository historyRepository, 
         INavigationService navigationService,
-        IHistoryViewModelFactory historyViewModelFactory) 
+        IHistoryViewModelFactory historyViewModelFactory,
+        ILogger<HistoryViewModel>? logger = null) 
         : base(errorBoundary)
     {
+        _logger = logger ?? NullLogger<HistoryViewModel>.Instance;
         _historyRepository = historyRepository;
         _navigationService = navigationService;
         _historyViewModelFactory = historyViewModelFactory;
+        _logger.LogInformation("[Navigation] HistoryViewModel constructed in fresh scope.");
         State = Enums.UIState.Idle;
+        _ = InitializeAsync();
     }
 
     public async Task InitializeAsync()
@@ -49,9 +56,11 @@ public partial class HistoryViewModel : ViewModelBase
             Activities = new ObservableCollection<HistoryActivity>(activities);
             State = Enums.UIState.Ready;
             StatusMessage = "History loaded.";
+            _logger.LogInformation("[Navigation] HistoryViewModel loaded {Count} recent activities.", activities.Count);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "[Navigation] Failed to load history activities.");
             SetError($"Failed to load history: {ex.Message}");
         }
     }

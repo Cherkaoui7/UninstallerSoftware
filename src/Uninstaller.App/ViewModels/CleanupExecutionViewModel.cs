@@ -7,12 +7,14 @@ using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Uninstaller.Core.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Uninstaller.App.Enums;
 using Uninstaller.App.Services;
+using Uninstaller.Core.Abstractions;
 using Uninstaller.Domain.Entities;
 using Uninstaller.Domain.Enums;
-using Uninstaller.App.Enums;
-using Microsoft.Extensions.DependencyInjection;
 using AppEntity = Uninstaller.Domain.Entities.Application;
 
 namespace Uninstaller.App.ViewModels;
@@ -22,12 +24,14 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
     private readonly ICleanupTransactionEngine _transactionEngine;
     private readonly IObservableItemExecutionTracker _tracker;
     private readonly INavigationService _navigationService;
+    private readonly ILogger<CleanupExecutionViewModel> _logger;
     private readonly CleanupPlan _plan;
     private readonly AppEntity _application;
     private readonly List<Guid> _selectedItemIds;
     private readonly IServiceScope? _ownedScope;
     private CancellationTokenSource? _cts;
     private bool _isDisposed;
+    private bool _hasNavigated;
     private int _activeExecutionCount = 0;
 
     public CleanupExecutionViewModel(
@@ -38,8 +42,10 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         IObservableItemExecutionTracker tracker,
         INavigationService navigationService,
         IErrorBoundaryService errorBoundary,
-        IServiceScope? ownedScope = null) : base(errorBoundary)
+        IServiceScope? ownedScope = null,
+        ILogger<CleanupExecutionViewModel>? logger = null) : base(errorBoundary)
     {
+        _logger = logger ?? NullLogger<CleanupExecutionViewModel>.Instance;
         _plan = plan;
         _application = application;
         _selectedItemIds = selectedItemIds.ToList();
@@ -89,6 +95,8 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
 
     public bool CanCancel => State == UIState.Working && _cts != null && !_cts.IsCancellationRequested;
 
+    public bool CanFinish => !_hasNavigated && (State == UIState.Success || State == UIState.Warning || State == UIState.Error || State == UIState.Cancelled);
+
     [RelayCommand(CanExecute = nameof(CanCancel))]
     private void Cancel()
     {
@@ -97,6 +105,36 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
             StatusMessage = "Finishing current operation...";
             _cts.Cancel();
             CancelCommand.NotifyCanExecuteChanged();
+            FinishCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanFinish))]
+    private void Finish()
+    {
+        if (_hasNavigated)
+        {
+            _logger.LogWarning("[Navigation] SessionId={SessionId}: Finish command invoked but navigation already requested.", SessionId);
+            return;
+        }
+
+        _logger.LogInformation("[Navigation] SessionId={SessionId}: Button command invocation - Finish method entered.", SessionId);
+        _logger.LogInformation("[Navigation] SessionId={SessionId}: Requesting navigation to HistoryViewModel.", SessionId);
+
+        _hasNavigated = true;
+        FinishCommand.NotifyCanExecuteChanged();
+
+        try
+        {
+            _navigationService.NavigateTo<HistoryViewModel>();
+            _logger.LogInformation("[Navigation] SessionId={SessionId}: Navigation to HistoryViewModel requested successfully.", SessionId);
+        }
+        catch (Exception ex)
+        {
+            _hasNavigated = false;
+            FinishCommand.NotifyCanExecuteChanged();
+            _logger.LogError(ex, "[Navigation] SessionId={SessionId}: Navigation to HistoryViewModel failed.", SessionId);
+            SetError(ErrorBoundary.HandleException(ex, "Navigating to History"));
         }
     }
 
@@ -112,6 +150,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
 
         _cts = new CancellationTokenSource();
         CancelCommand.NotifyCanExecuteChanged();
+        FinishCommand.NotifyCanExecuteChanged();
 
         _tracker.StateChanged += OnTrackerStateChanged;
         Interlocked.Increment(ref _activeExecutionCount);
@@ -125,6 +164,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             SetError(ErrorBoundary.HandleException(ex, "Executing Cleanup"));
+            FinishCommand.NotifyCanExecuteChanged();
         }
         finally
         {
@@ -132,6 +172,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
             _cts?.Dispose();
             _cts = null;
             CancelCommand.NotifyCanExecuteChanged();
+            FinishCommand.NotifyCanExecuteChanged();
             Interlocked.Decrement(ref _activeExecutionCount);
 
             if (_isDisposed)
@@ -227,6 +268,8 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
                 StatusMessage = "Cleanup failed.";
                 break;
         }
+
+        FinishCommand.NotifyCanExecuteChanged();
     }
 
     private string? MapFailureReason(string? reason)

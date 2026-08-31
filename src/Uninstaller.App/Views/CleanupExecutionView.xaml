@@ -181,6 +181,7 @@
                     Style="{StaticResource CancelBtnStyle}" />
             
             <Button Content="Finish &amp; View History" 
+                    Command="{Binding FinishCommand}"
                     Width="140" Height="30"
                     Background="#0078D7" Foreground="White" BorderThickness="0"
                     Style="{StaticResource FinishBtnStyle}" />
