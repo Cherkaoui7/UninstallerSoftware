@@ -508,4 +508,93 @@ public class ProductionCleanupSafetyPipelineTests
             }
         }
     }
+
+    [Fact]
+    public async Task Req18_ProductionPipeline_DirectoryWithContents_CleansUpSafelyAndCompletely()
+    {
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerSafetyTests");
+        var appDataDir = Path.Combine(testBase, "AppData", "Roaming");
+        var telegramDir = Path.Combine(appDataDir, "Telegram Desktop");
+        Directory.CreateDirectory(telegramDir);
+        var logFile = Path.Combine(telegramDir, "log_start0.txt");
+        File.WriteAllText(logFile, "Telegram runtime logs");
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+
+            var app = new Application
+            {
+                Id = Guid.NewGuid(),
+                Name = "Telegram Desktop",
+                InstallLocation = telegramDir
+            };
+
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = UninstallSessionStatus.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(app);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
+            }
+
+            var planItem = new CleanupPlanItem
+            {
+                Id = Guid.NewGuid(),
+                Path = telegramDir,
+                ArtifactType = ArtifactType.Directory,
+                Classification = ArtifactClassification.ApplicationOwned,
+                RiskLevel = RiskLevel.Low,
+                Recommended = true,
+                IsProtected = false
+            };
+
+            var plan = new CleanupPlan
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                UninstallSessionId = session.Id,
+                CreatedAt = DateTime.UtcNow,
+                Items = new List<CleanupPlanItem> { planItem }
+            };
+
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+            using var execVm = cleanupFactory.CreateExecutionViewModel(plan, app, new[] { planItem.Id });
+
+            await execVm.StartExecutionAsync();
+
+            Assert.Equal(1, execVm.SuccessCount);
+            Assert.Equal(0, execVm.FailedCount);
+            Assert.Equal(0, execVm.SkippedCount);
+            Assert.False(Directory.Exists(telegramDir), "Telegram Desktop directory must be safely deleted.");
+            Assert.False(File.Exists(logFile), "log_start0.txt must be safely deleted.");
+
+            // Verify database state
+            using var verifyScope = provider.CreateScope();
+            var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var backup = await verifyDb.Backups.FirstOrDefaultAsync(b => b.SessionId == session.Id);
+            Assert.NotNull(backup);
+            Assert.Equal(BackupVerificationStatus.Verified, backup.VerificationStatus);
+
+            var journal = await verifyDb.TransactionJournalEntries.Where(j => j.SessionId == session.Id && j.ItemId == planItem.Id).ToListAsync();
+            Assert.NotEmpty(journal);
+            Assert.Contains(journal, j => j.State == CleanupItemExecutionState.Succeeded.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(telegramDir))
+            {
+                try { Directory.Delete(telegramDir, true); } catch { }
+            }
+        }
+    }
 }

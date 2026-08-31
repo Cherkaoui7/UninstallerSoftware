@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Domain.Entities;
@@ -24,7 +25,15 @@ public class WindowsFileCleanupExecutorTests : IDisposable
         Directory.CreateDirectory(_testTempRoot);
 
         _resolverMock = new Mock<ICanonicalPathResolver>();
-        _executor = new WindowsFileCleanupExecutor(_resolverMock.Object);
+        _resolverMock.Setup(r => r.IsPathContainedWithin(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((string p, string root) => 
+            {
+                var normP = Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar);
+                var normR = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+                return normP.StartsWith(normR + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) || normP.Equals(normR, StringComparison.OrdinalIgnoreCase);
+            });
+
+        _executor = new WindowsFileCleanupExecutor(_resolverMock.Object, NullLogger<WindowsFileCleanupExecutor>.Instance);
     }
 
     [Fact]
@@ -112,22 +121,99 @@ public class WindowsFileCleanupExecutorTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteAsync_NonEmptyDirectory_ShouldFailCleanly()
+    public async Task ExecuteAsync_DirectoryWithFiles_ShouldDeleteSafelyAndVerify()
     {
-        var targetDir = Path.Combine(_testTempRoot, "NonEmptyDir");
+        var targetDir = Path.Combine(_testTempRoot, "Telegram Desktop");
         Directory.CreateDirectory(targetDir);
-        File.WriteAllText(Path.Combine(targetDir, "child.txt"), "data");
+        var logFile = Path.Combine(targetDir, "log_start0.txt");
+        File.WriteAllText(logFile, "Telegram log content");
+
+        var context = CreateContext(targetDir, ArtifactType.Directory);
+
+        _resolverMock.Setup(r => r.ResolveAndVerify(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string p, string root, CancellationToken ct) => new PathSafetyResult { IsValid = true, CanonicalPath = Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar) });
+
+        var result = await _executor.ExecuteAsync(context);
+
+        result.Success.Should().BeTrue();
+        result.Outcome.Should().Be(CleanupOutcome.DeletedAndVerified);
+        Directory.Exists(targetDir).Should().BeFalse();
+        File.Exists(logFile).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DirectoryWithNestedHierarchy_ShouldDeleteAllLevelsSafely()
+    {
+        var targetDir = Path.Combine(_testTempRoot, "AppDirectory");
+        var subDir1 = Path.Combine(targetDir, "SubDir1");
+        var subDir2 = Path.Combine(subDir1, "SubDir2");
+        Directory.CreateDirectory(subDir2);
+        
+        var file1 = Path.Combine(targetDir, "root_file.bin");
+        var file2 = Path.Combine(subDir1, "sub1_file.bin");
+        var file3 = Path.Combine(subDir2, "sub2_file.bin");
+        File.WriteAllText(file1, "1");
+        File.WriteAllText(file2, "2");
+        File.WriteAllText(file3, "3");
+
+        var context = CreateContext(targetDir, ArtifactType.Directory);
+
+        _resolverMock.Setup(r => r.ResolveAndVerify(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string p, string root, CancellationToken ct) => new PathSafetyResult { IsValid = true, CanonicalPath = Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar) });
+
+        var result = await _executor.ExecuteAsync(context);
+
+        result.Success.Should().BeTrue();
+        result.Outcome.Should().Be(CleanupOutcome.DeletedAndVerified);
+        Directory.Exists(targetDir).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DirectoryWithProtectedChild_ShouldAbortFailClosed()
+    {
+        var targetDir = Path.Combine(_testTempRoot, "AppDirectoryWithProtectedChild");
+        Directory.CreateDirectory(targetDir);
+        var sensitiveFile = Path.Combine(targetDir, "sensitive.txt");
+        File.WriteAllText(sensitiveFile, "protected data");
 
         var context = CreateContext(targetDir, ArtifactType.Directory);
 
         _resolverMock.Setup(r => r.ResolveAndVerify(targetDir, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = targetDir });
 
+        _resolverMock.Setup(r => r.ResolveAndVerify(sensitiveFile, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = sensitiveFile, IsProtected = true });
+
         var result = await _executor.ExecuteAsync(context);
 
         result.Success.Should().BeFalse();
-        result.Outcome.Should().Be(CleanupOutcome.DirectoryNotEmpty);
+        result.Outcome.Should().Be(CleanupOutcome.Protected);
+        result.FailureReason.Should().Contain("protected child");
         Directory.Exists(targetDir).Should().BeTrue();
+        File.Exists(sensitiveFile).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DirectoryWithLockedFile_ShouldFailCleanly()
+    {
+        var targetDir = Path.Combine(_testTempRoot, "DirWithLockedFile");
+        Directory.CreateDirectory(targetDir);
+        var lockedFile = Path.Combine(targetDir, "locked.log");
+        File.WriteAllText(lockedFile, "log data");
+
+        var context = CreateContext(targetDir, ArtifactType.Directory);
+
+        _resolverMock.Setup(r => r.ResolveAndVerify(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns((string p, string root, CancellationToken ct) => new PathSafetyResult { IsValid = true, CanonicalPath = Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar) });
+
+        using (var fs = new FileStream(lockedFile, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var result = await _executor.ExecuteAsync(context);
+
+            result.Success.Should().BeFalse();
+            result.Outcome.Should().Be(CleanupOutcome.Locked);
+            Directory.Exists(targetDir).Should().BeTrue();
+        }
     }
 
     [Fact]
@@ -148,7 +234,7 @@ public class WindowsFileCleanupExecutorTests : IDisposable
 
         result.Success.Should().BeFalse();
         result.Outcome.Should().Be(CleanupOutcome.Locked);
-        result.RequiresReboot.Should().BeFalse(); // Mandated for V1
+        result.RequiresReboot.Should().BeFalse();
     }
 
     private AuthorizedExecutionContext CreateContext(string path, ArtifactType type)
@@ -156,7 +242,7 @@ public class WindowsFileCleanupExecutorTests : IDisposable
         return new AuthorizedExecutionContext
         {
             CleanupPlanItemId = Guid.NewGuid(),
-            CanonicalPath = path,
+            CanonicalPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar),
             ArtifactType = type,
             PreflightOutcomeAuthorized = true,
             BackupId = Guid.NewGuid(),
@@ -171,7 +257,7 @@ public class WindowsFileCleanupExecutorTests : IDisposable
     {
         if (Directory.Exists(_testTempRoot))
         {
-            Directory.Delete(_testTempRoot, true);
+            try { Directory.Delete(_testTempRoot, true); } catch { }
         }
     }
 }
