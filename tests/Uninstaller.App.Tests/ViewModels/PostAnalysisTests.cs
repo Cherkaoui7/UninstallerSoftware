@@ -21,6 +21,7 @@ public class PostAnalysisTests
         var services = new ServiceCollection();
         services.AddSingleton(new Mock<INavigationService>().Object);
         services.AddSingleton(new Mock<IErrorBoundaryService>().Object);
+        services.AddSingleton(new Mock<ICleanupViewModelFactory>().Object);
         var provider = services.BuildServiceProvider();
 
         var plan = new CleanupPlan 

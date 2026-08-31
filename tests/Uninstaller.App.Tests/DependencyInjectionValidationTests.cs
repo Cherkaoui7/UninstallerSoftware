@@ -147,7 +147,8 @@ public class DependencyInjectionValidationTests
     public async Task CleanupExecution_DedicatedScope_ExecutesWithoutObjectDisposedException()
     {
         // 1. Setup real production container with isolated SQLite DB and temporary directory
-        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_DI_Test_" + Guid.NewGuid().ToString("N"));
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerTests");
+        var tempDir = Path.Combine(testBase, "Uninstaller_DI_Test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var targetFile = Path.Combine(tempDir, "sample_residual.log");
         File.WriteAllText(targetFile, "temporary residual payload");
@@ -233,7 +234,8 @@ public class DependencyInjectionValidationTests
     [Fact]
     public async Task RepeatedCleanup_50Operations_DoNotLeakOrReuseDisposedScopes()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_Repeat_Test_" + Guid.NewGuid().ToString("N"));
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerTests");
+        var tempDir = Path.Combine(testBase, "Uninstaller_Repeat_Test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
 
         try
@@ -247,7 +249,7 @@ public class DependencyInjectionValidationTests
                 await db.Database.EnsureCreatedAsync();
             }
 
-            var appEntity = new Application { Id = Guid.NewGuid(), Name = "Repeat App" };
+            var appEntity = new Application { Id = Guid.NewGuid(), Name = "Repeat App", InstallLocation = tempDir };
 
             for (int i = 0; i < 50; i++)
             {
@@ -291,7 +293,8 @@ public class DependencyInjectionValidationTests
     [Fact]
     public async Task CleanupExecution_NavigationAwayWhileRunning_DefersScopeDisposalUntilExecutionComplete()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_NavDefer_" + Guid.NewGuid().ToString("N"));
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerTests");
+        var tempDir = Path.Combine(testBase, "Uninstaller_NavDefer_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var targetFile = Path.Combine(tempDir, "deferred.log");
         File.WriteAllText(targetFile, "data");
