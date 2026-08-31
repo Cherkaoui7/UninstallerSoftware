@@ -77,7 +77,12 @@ public partial class HistoryViewModel : ViewModelBase
     {
         if (activity != null)
         {
-            _navigationService.NavigateTo(_historyViewModelFactory.CreateApplicationHistoryViewModel(activity.ApplicationId, activity.ApplicationName));
+            _logger.LogInformation("[Navigation] Details command invoked: ViewApplicationTimeline for AppId={AppId}, AppName={AppName}", 
+                activity.ApplicationId, activity.ApplicationName);
+            var vm = _historyViewModelFactory.CreateApplicationHistoryViewModel(activity.ApplicationId, activity.ApplicationName);
+            _logger.LogInformation("[Navigation] ApplicationHistoryViewModel instance created: Type={Type} Hash=#{Hash}", 
+                vm.GetType().FullName, vm.GetHashCode());
+            _navigationService.NavigateTo(vm);
         }
     }
 
@@ -86,13 +91,22 @@ public partial class HistoryViewModel : ViewModelBase
     {
         if (activity == null) return;
 
+        _logger.LogInformation("[Navigation] Details command invoked: ViewSessionDetails for SessionId={SessionId}, ActivityType={ActivityType}", 
+            activity.SessionId, activity.ActivityType);
+
         if (activity.ActivityType == ActivityType.Cleanup)
         {
-            _navigationService.NavigateTo(_historyViewModelFactory.CreateCleanupSessionHistoryViewModel(activity.SessionId));
+            var vm = _historyViewModelFactory.CreateCleanupSessionHistoryViewModel(activity.SessionId);
+            _logger.LogInformation("[Navigation] CleanupSessionHistoryViewModel instance created: Type={Type} Hash=#{Hash}", 
+                vm.GetType().FullName, vm.GetHashCode());
+            _navigationService.NavigateTo(vm);
         }
         else if (activity.ActivityType == ActivityType.Recovery)
         {
-            _navigationService.NavigateTo(_historyViewModelFactory.CreateRecoverySessionHistoryViewModel(activity.SessionId));
+            var vm = _historyViewModelFactory.CreateRecoverySessionHistoryViewModel(activity.SessionId);
+            _logger.LogInformation("[Navigation] RecoverySessionHistoryViewModel instance created: Type={Type} Hash=#{Hash}", 
+                vm.GetType().FullName, vm.GetHashCode());
+            _navigationService.NavigateTo(vm);
         }
         else
         {

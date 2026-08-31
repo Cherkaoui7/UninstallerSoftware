@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Uninstaller.App.ViewModels;
 using Uninstaller.Core.Abstractions;
 
@@ -22,13 +23,16 @@ public class HistoryViewModelFactory : IHistoryViewModelFactory
             var repository = scope.ServiceProvider.GetRequiredService<IHistoryRepository>();
             var navService = scope.ServiceProvider.GetRequiredService<INavigationService>();
             var errorBoundary = scope.ServiceProvider.GetRequiredService<IErrorBoundaryService>();
+            var logger = scope.ServiceProvider.GetService<ILogger<CleanupSessionHistoryViewModel>>();
 
             return new CleanupSessionHistoryViewModel(
                 errorBoundary,
                 repository,
                 navService,
+                this,
                 sessionId,
-                scope);
+                scope,
+                logger);
         }
         catch
         {
@@ -45,13 +49,15 @@ public class HistoryViewModelFactory : IHistoryViewModelFactory
             var repository = scope.ServiceProvider.GetRequiredService<IHistoryRepository>();
             var navService = scope.ServiceProvider.GetRequiredService<INavigationService>();
             var errorBoundary = scope.ServiceProvider.GetRequiredService<IErrorBoundaryService>();
+            var logger = scope.ServiceProvider.GetService<ILogger<RecoverySessionHistoryViewModel>>();
 
             return new RecoverySessionHistoryViewModel(
                 errorBoundary,
                 repository,
                 navService,
                 sessionId,
-                scope);
+                scope,
+                logger);
         }
         catch
         {
@@ -68,14 +74,17 @@ public class HistoryViewModelFactory : IHistoryViewModelFactory
             var repository = scope.ServiceProvider.GetRequiredService<IHistoryRepository>();
             var navService = scope.ServiceProvider.GetRequiredService<INavigationService>();
             var errorBoundary = scope.ServiceProvider.GetRequiredService<IErrorBoundaryService>();
+            var logger = scope.ServiceProvider.GetService<ILogger<ApplicationHistoryViewModel>>();
 
             return new ApplicationHistoryViewModel(
                 errorBoundary,
                 repository,
                 navService,
+                this,
                 applicationId,
                 applicationName,
-                scope);
+                scope,
+                logger);
         }
         catch
         {

@@ -1,19 +1,8 @@
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using Serilog;
 
 namespace Uninstaller.App;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     public MainWindow(ViewModels.MainViewModel viewModel)
@@ -21,6 +10,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
 
-        
+        MainContentControl.DataContextChanged += (s, e) =>
+        {
+            Log.Information("[Navigation] MainContentControl DataContext changed to {DataContextType} (#{Hash})",
+                e.NewValue?.GetType().FullName, e.NewValue?.GetHashCode());
+        };
     }
 }

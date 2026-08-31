@@ -1,8 +1,45 @@
 <Application x:Class="Uninstaller.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Uninstaller.App.ViewModels"
+             xmlns:v="clr-namespace:Uninstaller.App.Views"
              xmlns:local="clr-namespace:Uninstaller.App">
     <Application.Resources>
-         
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+            <v:DashboardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationsViewModel}">
+            <v:ApplicationsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationDetailsViewModel}">
+            <v:ApplicationDetailsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupPlanViewModel}">
+            <v:CleanupPlanView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupExecutionViewModel}">
+            <v:CleanupExecutionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
+            <v:HistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationHistoryViewModel}">
+            <v:ApplicationHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupSessionHistoryViewModel}">
+            <v:CleanupSessionHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoverySessionHistoryViewModel}">
+            <v:RecoverySessionHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
+            <v:RecoveryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoverySessionViewModel}">
+            <v:RecoverySessionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView />
+        </DataTemplate>
     </Application.Resources>
 </Application>

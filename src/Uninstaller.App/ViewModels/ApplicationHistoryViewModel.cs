@@ -4,10 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Uninstaller.App.Services;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Models.History;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Uninstaller.App.ViewModels;
 
@@ -15,6 +17,8 @@ public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly INavigationService _navigationService;
+    private readonly IHistoryViewModelFactory _historyViewModelFactory;
+    private readonly ILogger<ApplicationHistoryViewModel> _logger;
     private readonly IServiceScope? _ownedScope;
 
     public Guid ApplicationId { get; }
@@ -27,17 +31,23 @@ public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
         IErrorBoundaryService errorBoundary, 
         IHistoryRepository historyRepository, 
         INavigationService navigationService, 
+        IHistoryViewModelFactory historyViewModelFactory,
         Guid applicationId, 
         string applicationName,
-        IServiceScope? ownedScope = null) 
+        IServiceScope? ownedScope = null,
+        ILogger<ApplicationHistoryViewModel>? logger = null) 
         : base(errorBoundary)
     {
+        _logger = logger ?? NullLogger<ApplicationHistoryViewModel>.Instance;
         _historyRepository = historyRepository;
         _navigationService = navigationService;
+        _historyViewModelFactory = historyViewModelFactory;
         _ownedScope = ownedScope;
         ApplicationId = applicationId;
         ApplicationName = applicationName;
+        _logger.LogInformation("[Navigation] ApplicationHistoryViewModel constructed for AppId={AppId}, AppName={AppName}", applicationId, applicationName);
         State = Enums.UIState.Idle;
+        _ = InitializeAsync();
     }
 
     public async Task InitializeAsync()
@@ -49,9 +59,11 @@ public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
             TimelineEvents = new ObservableCollection<TimelineEvent>(events);
             State = Enums.UIState.Ready;
             StatusMessage = "Timeline loaded.";
+            _logger.LogInformation("[Navigation] ApplicationHistoryViewModel loaded {Count} timeline events for AppId={AppId}", events.Count, ApplicationId);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "[Navigation] Failed to load application timeline for AppId={AppId}", ApplicationId);
             SetError($"Failed to load timeline: {ex.Message}");
         }
     }
@@ -59,6 +71,7 @@ public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void GoBack()
     {
+        _logger.LogInformation("[Navigation] GoBack invoked from ApplicationHistoryViewModel, navigating back to HistoryViewModel");
         _navigationService.NavigateTo<HistoryViewModel>();
     }
 
@@ -67,13 +80,18 @@ public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
     {
         if (evt == null || evt.RelatedSessionId == null) return;
 
+        _logger.LogInformation("[Navigation] ViewEventDetails invoked for Event={EventTitle}, RelatedSessionId={SessionId}, ActivityType={ActivityType}", 
+            evt.Title, evt.RelatedSessionId, evt.ActivityType);
+
         if (evt.ActivityType == ActivityType.Cleanup)
         {
-            _navigationService.NavigateTo(new CleanupSessionHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, evt.RelatedSessionId.Value));
+            var vm = _historyViewModelFactory.CreateCleanupSessionHistoryViewModel(evt.RelatedSessionId.Value);
+            _navigationService.NavigateTo(vm);
         }
         else if (evt.ActivityType == ActivityType.Recovery)
         {
-            _navigationService.NavigateTo(new RecoverySessionHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, evt.RelatedSessionId.Value));
+            var vm = _historyViewModelFactory.CreateRecoverySessionHistoryViewModel(evt.RelatedSessionId.Value);
+            _navigationService.NavigateTo(vm);
         }
     }
 

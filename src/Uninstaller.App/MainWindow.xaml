@@ -15,15 +15,6 @@
         <DataTemplate DataType="{x:Type vm:ApplicationsViewModel}">
             <v:ApplicationsView />
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
-            <v:HistoryView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
-            <v:RecoveryView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
-            <v:SettingsView />
-        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ApplicationDetailsViewModel}">
             <v:ApplicationDetailsView />
         </DataTemplate>
@@ -33,8 +24,26 @@
         <DataTemplate DataType="{x:Type vm:CleanupExecutionViewModel}">
             <v:CleanupExecutionView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
+            <v:HistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ApplicationHistoryViewModel}">
+            <v:ApplicationHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CleanupSessionHistoryViewModel}">
+            <v:CleanupSessionHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoverySessionHistoryViewModel}">
+            <v:RecoverySessionHistoryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RecoveryViewModel}">
+            <v:RecoveryView />
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:RecoverySessionViewModel}">
             <v:RecoverySessionView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <v:SettingsView />
         </DataTemplate>
     </Window.Resources>
 
@@ -57,6 +66,6 @@
         </Border>
 
         <!-- Main Content Area -->
-        <ContentControl Grid.Column="1" Content="{Binding CurrentViewModel}" Margin="10" />
+        <ContentControl x:Name="MainContentControl" Grid.Column="1" Content="{Binding CurrentViewModel}" Margin="10" />
     </Grid>
 </Window>
