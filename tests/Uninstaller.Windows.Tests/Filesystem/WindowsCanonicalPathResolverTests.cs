@@ -188,29 +188,22 @@ public class WindowsCanonicalPathResolverTests
     }
 
     [Theory]
-    [InlineData(@"C:\Users\test\Documents\MyReport.docx")]
-    [InlineData(@"C:\Users\test\Downloads\Installer.exe")]
-    [InlineData(@"C:\Users\test\Pictures\Vacation.png")]
-    [InlineData(@"C:\Users\test\Videos\Recording.mp4")]
-    [InlineData(@"C:\Users\test\Music\Song.mp3")]
-    [InlineData(@"C:\Users\test\OneDrive\Secret.docx")]
-    [InlineData(@"C:\Users\test\Dropbox\Project.zip")]
-    public void ResolveAndVerify_ProtectedUserDataSubtrees_AreFlaggedProtected(string userPath)
+    [InlineData("Documents\\MyReport.docx")]
+    [InlineData("Downloads\\Installer.exe")]
+    [InlineData("Pictures\\Vacation.png")]
+    [InlineData("Videos\\Recording.mp4")]
+    [InlineData("Music\\Song.mp3")]
+    [InlineData("OneDrive\\Secret.docx")]
+    [InlineData("Dropbox\\Project.zip")]
+    [InlineData("Google Drive\\Work.pdf")]
+    [InlineData("iCloudDrive\\Notes.txt")]
+    public void ResolveAndVerify_ProtectedUserDataSubtrees_AreFlaggedProtected(string userSubPath)
     {
-        // For testing arbitrary user profile subtrees without depending on current machine username:
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var actualUserDoc = Path.Combine(userProfile, "Documents", "test.txt");
-        var actualUserDownload = Path.Combine(userProfile, "Downloads", "test.exe");
-        var actualUserOneDrive = Path.Combine(userProfile, "OneDrive", "test.txt");
+        var actualPath = Path.Combine(userProfile, userSubPath);
 
-        var resDoc = _resolver.ResolveAndVerify(actualUserDoc);
-        Assert.True(resDoc.IsProtected);
-
-        var resDl = _resolver.ResolveAndVerify(actualUserDownload);
-        Assert.True(resDl.IsProtected);
-
-        var resOD = _resolver.ResolveAndVerify(actualUserOneDrive);
-        Assert.True(resOD.IsProtected);
+        var result = _resolver.ResolveAndVerify(actualPath);
+        Assert.True(result.IsProtected, $"User data path '{actualPath}' must be protected.");
     }
 
     [Fact]
