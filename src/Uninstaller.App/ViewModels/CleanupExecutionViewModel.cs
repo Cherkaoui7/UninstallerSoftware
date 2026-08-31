@@ -12,6 +12,7 @@ using Uninstaller.App.Services;
 using Uninstaller.Domain.Entities;
 using Uninstaller.Domain.Enums;
 using Uninstaller.App.Enums;
+using Microsoft.Extensions.DependencyInjection;
 using AppEntity = Uninstaller.Domain.Entities.Application;
 
 namespace Uninstaller.App.ViewModels;

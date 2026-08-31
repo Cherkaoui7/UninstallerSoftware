@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.Input;
 using Uninstaller.App.Services;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Models.History;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Uninstaller.App.ViewModels;
 
