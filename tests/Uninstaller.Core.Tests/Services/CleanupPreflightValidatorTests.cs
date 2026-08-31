@@ -96,7 +96,7 @@ public class CleanupPreflightValidatorTests
 
         _pathResolverMock.Setup(r => r.IsPathContainedWithin(item.Path!, app.InstallLocation!)).Returns(true);
         _pathResolverMock.Setup(r => r.ResolveAndVerify(item.Path!, app.InstallLocation, default))
-            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = item.Path });
+            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = item.Path, IsWithinExpectedRoot = true });
         _fileSystemMock.Setup(f => f.FileExists(item.Path)).Returns(false);
 
         var result = await _validator.ValidateAsync(item, app);
@@ -129,7 +129,7 @@ public class CleanupPreflightValidatorTests
 
         _pathResolverMock.Setup(r => r.IsPathContainedWithin(item.Path!, app.InstallLocation!)).Returns(true);
         _pathResolverMock.Setup(r => r.ResolveAndVerify(item.Path!, app.InstallLocation, default))
-            .Returns(new PathSafetyResult { IsValid = true, IsReparsePoint = true });
+            .Returns(new PathSafetyResult { IsValid = true, IsReparsePoint = true, IsWithinExpectedRoot = true });
 
         var result = await _validator.ValidateAsync(item, app);
 
@@ -145,7 +145,7 @@ public class CleanupPreflightValidatorTests
 
         _pathResolverMock.Setup(r => r.IsPathContainedWithin(item.Path!, app.InstallLocation!)).Returns(true);
         _pathResolverMock.Setup(r => r.ResolveAndVerify(item.Path!, app.InstallLocation, default))
-            .Returns(new PathSafetyResult { IsValid = true, IsProtected = true });
+            .Returns(new PathSafetyResult { IsValid = true, IsProtected = true, IsWithinExpectedRoot = true });
 
         var result = await _validator.ValidateAsync(item, app);
 
