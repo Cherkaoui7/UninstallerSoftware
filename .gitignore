@@ -45,7 +45,7 @@ bld/
 Generated\ Files/
 
 # QA artifacts
-qa/
+/qa/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
