@@ -32,7 +32,7 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
         {
             IsValid = true,
             IsAuthorized = false,
-            Outcome = PreflightValidationOutcome.Authorized,
+            Outcome = PreflightValidationOutcome.ValidationError,
             ArtifactStillMatches = true,
             ApplicationStillMatches = true,
             PlanItemStillValid = true
@@ -76,8 +76,9 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
                 return Task.FromResult(Reject(result, PreflightValidationOutcome.UnsupportedArtifact, $"Unsupported artifact type: {item.ArtifactType}"));
         }
 
-        if (result.Outcome == PreflightValidationOutcome.Authorized)
+        if (result.IsValid)
         {
+            result.Outcome = PreflightValidationOutcome.Authorized;
             result.IsAuthorized = true;
         }
 

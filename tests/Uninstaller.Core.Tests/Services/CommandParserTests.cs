@@ -208,4 +208,16 @@ public class CommandParserTests
         Assert.Equal(ExecutionType.Missing, result.ExecutionType);
         Assert.False(result.IsValid);
     }
+
+    [Fact]
+    public void Parse_DirectoryNameContainingExe_ParsesCorrectExecutable()
+    {
+        _fileSystemMock.Setup(fs => fs.FileExists(@"C:\Program Files\SomeApp.exe\uninstall.exe")).Returns(true);
+        var app = new Application { UninstallCommand = @"C:\Program Files\SomeApp.exe\uninstall.exe /S" };
+        var result = _parser.Parse(app);
+
+        Assert.Equal(@"C:\Program Files\SomeApp.exe\uninstall.exe", result.ExecutablePath);
+        Assert.Equal("/S", result.Arguments);
+        Assert.True(result.IsValid);
+    }
 }

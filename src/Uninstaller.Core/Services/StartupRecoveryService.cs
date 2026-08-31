@@ -136,9 +136,31 @@ public class StartupRecoveryService : IStartupRecoveryService
             ArtifactType.File or ArtifactType.Shortcut => _fileSystem.FileExists(path),
             ArtifactType.Directory => _fileSystem.DirectoryExists(path),
             ArtifactType.RegistryKey => _registry.KeyExists(ParseRoot(path), ParseSubKey(path)),
-            ArtifactType.RegistryValue => true, // RegistryService doesn't have ValueExists yet. Safest to say it exists (failed to delete).
+            ArtifactType.RegistryValue => CheckRegistryValueExists(path),
             _ => true
         };
+    }
+
+    private bool CheckRegistryValueExists(string path)
+    {
+        var root = ParseRoot(path);
+        var remainder = ParseSubKey(path);
+        
+        if (remainder.Contains("::"))
+        {
+            var parts = remainder.Split("::", 2);
+            return _registry.ValueExists(root, parts[0], parts[1]);
+        }
+
+        var lastSlash = remainder.LastIndexOf('\\');
+        if (lastSlash > 0)
+        {
+            var keyPath = remainder.Substring(0, lastSlash);
+            var valueName = remainder.Substring(lastSlash + 1);
+            return _registry.ValueExists(root, keyPath, valueName);
+        }
+
+        return _registry.ValueExists(root, string.Empty, remainder);
     }
 
     private string ParseRoot(string path)

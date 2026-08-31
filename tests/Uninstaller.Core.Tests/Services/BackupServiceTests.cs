@@ -125,4 +125,33 @@ public class BackupServiceTests
         manifest.Backups[1].Status.Should().Be(BackupStatus.Failed);
         manifest.Backups[1].FailureReason.Should().Be("Checksum mismatch");
     }
+
+    [Fact]
+    public async Task GetBackupAsync_WhenInCache_ReturnsBackup()
+    {
+        var item = new CleanupPlanItem
+        {
+            Id = Guid.NewGuid(),
+            ArtifactType = ArtifactType.File,
+            Path = @"C:\Test\File.txt",
+            Recommended = true
+        };
+
+        var expectedBackup = new Backup
+        {
+            Id = Guid.NewGuid(),
+            ArtifactType = ArtifactType.File,
+            OriginalPath = item.Path,
+            Status = BackupStatus.Pending
+        };
+
+        _fileBackupMock.Setup(f => f.BackupFileSystemArtifactAsync(item, It.IsAny<string>(), default))
+            .ReturnsAsync(expectedBackup);
+
+        var created = await _backupService.BackupArtifactAsync(item, Guid.NewGuid());
+        var retrieved = await _backupService.GetBackupAsync(created.Id);
+
+        retrieved.Should().NotBeNull();
+        retrieved!.Id.Should().Be(created.Id);
+    }
 }

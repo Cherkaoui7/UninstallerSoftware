@@ -150,7 +150,7 @@ public class WindowsRegistryService : IRegistryService
     {
         try
         {
-            if (!Enum.TryParse<RegistryHive>(root, out var hive)) return false;
+            if (!TryParseHive(root, out var hive)) return false;
             
             using var baseKey = _registryProvider.OpenBaseKey(hive, RegistryView.Default);
             if (baseKey == null) return false;
@@ -160,6 +160,61 @@ public class WindowsRegistryService : IRegistryService
         catch
         {
             return false;
+        }
+    }
+
+    public bool ValueExists(string root, string path, string valueName)
+    {
+        try
+        {
+            if (!TryParseHive(root, out var hive)) return false;
+            
+            using var baseKey = _registryProvider.OpenBaseKey(hive, RegistryView.Default);
+            if (baseKey == null) return false;
+            using var subKey = baseKey.OpenSubKey(path, writable: false);
+            if (subKey == null) return false;
+
+            return subKey.GetValue(valueName) != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool TryParseHive(string root, out RegistryHive hive)
+    {
+        if (Enum.TryParse<RegistryHive>(root, true, out hive))
+        {
+            return true;
+        }
+
+        var normalized = root.Trim().ToUpperInvariant();
+        switch (normalized)
+        {
+            case "HKCU":
+            case "HKEY_CURRENT_USER":
+                hive = RegistryHive.CurrentUser;
+                return true;
+            case "HKLM":
+            case "HKEY_LOCAL_MACHINE":
+                hive = RegistryHive.LocalMachine;
+                return true;
+            case "HKCR":
+            case "HKEY_CLASSES_ROOT":
+                hive = RegistryHive.ClassesRoot;
+                return true;
+            case "HKU":
+            case "HKEY_USERS":
+                hive = RegistryHive.Users;
+                return true;
+            case "HKCC":
+            case "HKEY_CURRENT_CONFIG":
+                hive = RegistryHive.CurrentConfig;
+                return true;
+            default:
+                hive = default;
+                return false;
         }
     }
 }

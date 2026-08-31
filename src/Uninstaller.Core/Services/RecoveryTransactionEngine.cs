@@ -159,7 +159,16 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
                 await UpdateStateAsync(session.Id, item, RecoveryItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = RecoveryOutcome.Failed;
                 executionResult.FailureReason = $"Exception during recovery: {ex.Message}";
-                result.Results.Add(executionResult);
+                
+                var existingIdx = result.Results.FindIndex(r => r.RecoveryItemId == item.Id);
+                if (existingIdx >= 0)
+                {
+                    result.Results[existingIdx] = executionResult;
+                }
+                else
+                {
+                    result.Results.Add(executionResult);
+                }
                 result.FailureCount++;
             }
         }
@@ -176,7 +185,7 @@ public class RecoveryTransactionEngine : IRecoveryTransactionEngine
             }
             else
             {
-                result.Status = RecoverySessionStatus.Completed;
+                result.Status = result.SuccessCount > 0 ? RecoverySessionStatus.Completed : RecoverySessionStatus.CompletedWithFailures;
             }
         }
 

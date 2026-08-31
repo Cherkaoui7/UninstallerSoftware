@@ -21,6 +21,24 @@ public partial class RecoveryViewModel : ViewModelBase, IDisposable
     private readonly IObservableRecoveryItemExecutionTracker _tracker;
 
     public RecoveryViewModel(
+        IRecoveryTransactionEngine transactionEngine,
+        IObservableRecoveryItemExecutionTracker tracker,
+        INavigationService navigationService,
+        IErrorBoundaryService errorBoundary) : base(errorBoundary)
+    {
+        _application = new AppEntity { Name = "No Active Recovery Session" };
+        _session = new UninstallSession();
+        _transactionEngine = transactionEngine ?? throw new ArgumentNullException(nameof(transactionEngine));
+        _tracker = tracker ?? throw new ArgumentNullException(nameof(tracker));
+        _navigationService = navigationService ?? throw new ArgumentNullException(nameof(navigationService));
+
+        Items = new ObservableCollection<RecoveryItemViewModel>();
+        UpdateSummary();
+        State = Enums.UIState.Ready;
+        StatusMessage = "Select a completed cleanup session from the History tab to initiate recovery.";
+    }
+
+    public RecoveryViewModel(
         AppEntity application,
         UninstallSession session,
         IEnumerable<Backup> backups,

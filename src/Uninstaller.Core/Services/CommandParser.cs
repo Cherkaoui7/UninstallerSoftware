@@ -31,12 +31,12 @@ public class CommandParser : ICommandParser
         var isQuiet = !string.IsNullOrWhiteSpace(application.QuietUninstallCommand);
         var rawCommand = isQuiet ? application.QuietUninstallCommand! : application.UninstallCommand!;
 
-        _logger.LogInformation("App {AppName}: Parsing raw command: {Command}. IsQuiet: {IsQuiet}", application.Name, rawCommand, isQuiet);
+        _logger.LogDebug("App {AppName}: Parsing raw command: {Command}. IsQuiet: {IsQuiet}", application.Name, rawCommand, isQuiet);
 
         var parsed = ParseRawString(rawCommand);
         parsed.OriginalCommand = rawCommand;
         
-        _logger.LogInformation("App {AppName}: Extracted ExecutablePath: '{ExecutablePath}', Arguments: '{Arguments}'", application.Name, parsed.ExecutablePath, parsed.Arguments);
+        _logger.LogDebug("App {AppName}: Extracted ExecutablePath: '{ExecutablePath}', Arguments: '{Arguments}'", application.Name, parsed.ExecutablePath, parsed.Arguments);
 
         if (string.IsNullOrWhiteSpace(parsed.ExecutablePath))
         {
@@ -131,13 +131,21 @@ public class CommandParser : ICommandParser
         else
         {
             // Heuristic to handle unquoted paths with spaces (e.g. C:\Program Files\App\uninstall.exe /S)
-            var exeIndex = command.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
-            var msiIndex = command.IndexOf(".msi", StringComparison.OrdinalIgnoreCase);
+            var exeIndex = command.LastIndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+            var msiIndex = command.LastIndexOf(".msi", StringComparison.OrdinalIgnoreCase);
             
             int extensionIndex = -1;
             int extensionLength = 4;
             
-            if (exeIndex > 0)
+            if (exeIndex > 0 && (exeIndex + 4 == command.Length || command[exeIndex + 4] == ' ' || command[exeIndex + 4] == '/' || command[exeIndex + 4] == '-'))
+            {
+                extensionIndex = exeIndex;
+            }
+            else if (msiIndex > 0 && (msiIndex + 4 == command.Length || command[msiIndex + 4] == ' ' || command[msiIndex + 4] == '/' || command[msiIndex + 4] == '-'))
+            {
+                extensionIndex = msiIndex;
+            }
+            else if (exeIndex > 0)
             {
                 extensionIndex = exeIndex;
             }

@@ -191,7 +191,7 @@ public class UninstallService : IUninstallService
 
         bool isValid = (current, next) switch
         {
-            (_, UninstallSessionStatus.Created) => true,
+            (UninstallSessionStatus.Created, UninstallSessionStatus.Created) => true,
             (UninstallSessionStatus.Created, UninstallSessionStatus.Validating) => true,
             (UninstallSessionStatus.Validating, UninstallSessionStatus.ReadyToExecute) => true,
             (UninstallSessionStatus.Validating, UninstallSessionStatus.Failed) => true,

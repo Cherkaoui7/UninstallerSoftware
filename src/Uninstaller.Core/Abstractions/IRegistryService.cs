@@ -9,4 +9,5 @@ public interface IRegistryService
 {
     Task<IReadOnlyList<RawRegistryApplication>> GetUninstallEntriesAsync(CancellationToken cancellationToken);
     bool KeyExists(string root, string path);
+    bool ValueExists(string root, string path, string valueName);
 }

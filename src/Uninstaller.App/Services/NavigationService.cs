@@ -17,7 +17,21 @@ public class NavigationService : ObservableObject, INavigationService
     public ObservableObject? CurrentViewModel
     {
         get => _currentViewModel;
-        private set => SetProperty(ref _currentViewModel, value);
+        private set
+        {
+            if (_currentViewModel is IDisposable oldDisposable && !ReferenceEquals(_currentViewModel, value))
+            {
+                try
+                {
+                    oldDisposable.Dispose();
+                }
+                catch
+                {
+                    // Safe cleanup
+                }
+            }
+            SetProperty(ref _currentViewModel, value);
+        }
     }
 
     public TViewModel NavigateTo<TViewModel>() where TViewModel : ObservableObject

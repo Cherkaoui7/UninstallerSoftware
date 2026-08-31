@@ -81,7 +81,7 @@ public class DiscoveryService : IDiscoveryService
             if (result.Cancelled)
             {
                 _logger.LogWarning("Discovery session was cancelled during normalization.");
-                return CompleteResult(result);
+                return result;
             }
 
             // 3. Persist and Deduplicate

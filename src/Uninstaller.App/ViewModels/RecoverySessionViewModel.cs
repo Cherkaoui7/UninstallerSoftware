@@ -103,12 +103,15 @@ public partial class RecoverySessionViewModel : ViewModelBase, IDisposable
         _navigationService.NavigateTo<HistoryViewModel>();
     }
 
+    private bool _isExecutionCompleted;
+
     public async Task StartExecutionAsync()
     {
         if (State == UIState.Working || TotalCount == 0) return;
 
         SetWorking("Executing recovery plan...");
         StartedAt = DateTime.UtcNow;
+        _isExecutionCompleted = false;
 
         _cts = new CancellationTokenSource();
         CancelCommand.NotifyCanExecuteChanged();
@@ -162,6 +165,7 @@ public partial class RecoverySessionViewModel : ViewModelBase, IDisposable
         // Marshal to UI thread
         System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
         {
+            if (_isExecutionCompleted) return;
             if (_itemMap.TryGetValue(e.ItemId, out var item))
             {
                 item.State = e.State;
@@ -188,6 +192,7 @@ public partial class RecoverySessionViewModel : ViewModelBase, IDisposable
 
     private void ReconcileResult(RecoverySessionResult result)
     {
+        _isExecutionCompleted = true;
         SuccessCount = result.SuccessCount;
         FailedCount = result.FailureCount;
         SkippedCount = result.SkippedCount;

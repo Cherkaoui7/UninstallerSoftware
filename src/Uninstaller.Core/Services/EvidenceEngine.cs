@@ -16,7 +16,9 @@ public class EvidenceEngine : IEvidenceEngine
         @"Desktop",
         @"Pictures",
         @"Videos",
-        @"Music"
+        @"Music",
+        @"OneDrive",
+        @"Dropbox"
     };
 
     public ArtifactAnalysisResult Analyze(ResidualArtifactCandidate candidate)

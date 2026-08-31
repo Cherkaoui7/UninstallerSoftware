@@ -148,6 +148,7 @@ public class DiscoveryServiceTests
         private readonly Exception? _exceptionToThrow;
 
         public bool KeyExists(string root, string path) => true;
+        public bool ValueExists(string root, string path, string valueName) => true;
 
         public FakeRegistryService(List<RawRegistryApplication> entries) => _entries = entries;
         public FakeRegistryService(Exception ex) => _exceptionToThrow = ex;

@@ -34,6 +34,7 @@ public partial class ApplicationsViewModel : ViewModelBase
         ApplicationsView.Filter = FilterApplications;
         
         State = UIState.Ready;
+        _ = InitializeAsync();
     }
 
     public ObservableCollection<ApplicationViewModel> Applications { get; }

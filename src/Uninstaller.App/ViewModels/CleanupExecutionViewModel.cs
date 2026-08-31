@@ -95,12 +95,15 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool _isExecutionCompleted;
+
     public async Task StartExecutionAsync()
     {
         if (State == UIState.Working || TotalCount == 0) return;
 
         SetWorking("Executing cleanup plan...");
         StartedAt = DateTime.UtcNow;
+        _isExecutionCompleted = false;
 
         _cts = new CancellationTokenSource();
         CancelCommand.NotifyCanExecuteChanged();
@@ -131,6 +134,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         // Marshal to UI thread
         System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
         {
+            if (_isExecutionCompleted) return;
             var item = Items.FirstOrDefault(i => i.Id == e.ItemId);
             if (item != null)
             {
@@ -157,6 +161,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
 
     private void ReconcileResult(CleanupSessionResult result)
     {
+        _isExecutionCompleted = true;
         // Final state based on authoritative result
         SuccessCount = result.SuccessCount;
         FailedCount = result.FailureCount;

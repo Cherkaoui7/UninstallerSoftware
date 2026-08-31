@@ -206,7 +206,16 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
                 await UpdateStateAsync(plan.UninstallSessionId, item.Id, CleanupItemExecutionState.Failed, cancellationToken);
                 executionResult.Outcome = CleanupOutcome.DeleteFailed;
                 executionResult.FailureReason = $"Exception during execution: {ex.Message}";
-                result.Results.Add(executionResult);
+                
+                var existingIdx = result.Results.FindIndex(r => r.ItemId == item.Id);
+                if (existingIdx >= 0)
+                {
+                    result.Results[existingIdx] = executionResult;
+                }
+                else
+                {
+                    result.Results.Add(executionResult);
+                }
                 result.FailureCount++;
             }
         }
@@ -223,7 +232,7 @@ public class CleanupTransactionEngine : ICleanupTransactionEngine
             }
             else
             {
-                result.Status = CleanupSessionStatus.Completed; // Edge case (all skipped/failed covered)
+                result.Status = result.SuccessCount > 0 ? CleanupSessionStatus.Completed : CleanupSessionStatus.CompletedWithFailures;
             }
         }
 

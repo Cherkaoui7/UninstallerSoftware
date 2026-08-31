@@ -12,7 +12,7 @@ public abstract partial class ViewModelBase : ObservableObject
     protected ViewModelBase(IErrorBoundaryService errorBoundary)
     {
         ErrorBoundary = errorBoundary;
-        State = UIState.Idle;
+        State = UIState.Ready;
     }
 
     [ObservableProperty]

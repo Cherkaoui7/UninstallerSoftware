@@ -6,6 +6,8 @@ using Uninstaller.Core.Abstractions;
 using Uninstaller.Domain.Entities;
 using Uninstaller.Domain.Enums;
 
+using System.Collections.Concurrent;
+
 namespace Uninstaller.Core.Services;
 
 public class BackupService : IBackupService
@@ -13,15 +15,19 @@ public class BackupService : IBackupService
     private readonly IBackupStorage _storage;
     private readonly IFileBackupProvider _fileBackupProvider;
     private readonly IRegistryBackupProvider _registryBackupProvider;
+    private readonly IReconciliationRepository? _reconciliationRepository;
+    private readonly ConcurrentDictionary<Guid, Backup> _inMemoryBackups = new();
 
     public BackupService(
         IBackupStorage storage,
         IFileBackupProvider fileBackupProvider,
-        IRegistryBackupProvider registryBackupProvider)
+        IRegistryBackupProvider registryBackupProvider,
+        IReconciliationRepository? reconciliationRepository = null)
     {
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _fileBackupProvider = fileBackupProvider ?? throw new ArgumentNullException(nameof(fileBackupProvider));
         _registryBackupProvider = registryBackupProvider ?? throw new ArgumentNullException(nameof(registryBackupProvider));
+        _reconciliationRepository = reconciliationRepository;
     }
 
     public async Task<BackupManifest> CreateBackupManifestAsync(CleanupPlan plan, CancellationToken cancellationToken = default)
@@ -83,6 +89,18 @@ public class BackupService : IBackupService
             if (backup != null)
             {
                 manifest.Backups.Add(backup);
+                _inMemoryBackups[backup.Id] = backup;
+                if (_reconciliationRepository != null)
+                {
+                    try
+                    {
+                        await _reconciliationRepository.SaveBackupAsync(backup, cancellationToken);
+                    }
+                    catch
+                    {
+                        // Fallback to in-memory backup cache
+                    }
+                }
             }
         }
 
@@ -143,19 +161,20 @@ public class BackupService : IBackupService
 
         var sessionDirectory = _storage.GetOrCreateSessionDirectory(sessionId);
         
+        Backup backup;
         try
         {
             if (item.ArtifactType == ArtifactType.Directory || item.ArtifactType == ArtifactType.File || item.ArtifactType == ArtifactType.Shortcut)
             {
-                return await _fileBackupProvider.BackupFileSystemArtifactAsync(item, sessionDirectory, cancellationToken);
+                backup = await _fileBackupProvider.BackupFileSystemArtifactAsync(item, sessionDirectory, cancellationToken);
             }
             else if (item.ArtifactType == ArtifactType.RegistryKey || item.ArtifactType == ArtifactType.RegistryValue)
             {
-                return await _registryBackupProvider.BackupRegistryArtifactAsync(item, sessionDirectory, cancellationToken);
+                backup = await _registryBackupProvider.BackupRegistryArtifactAsync(item, sessionDirectory, cancellationToken);
             }
             else
             {
-                return new Backup
+                backup = new Backup
                 {
                     SessionId = sessionId,
                     ArtifactType = item.ArtifactType,
@@ -168,7 +187,7 @@ public class BackupService : IBackupService
         }
         catch (Exception ex)
         {
-            return new Backup
+            backup = new Backup
             {
                 SessionId = sessionId,
                 ArtifactType = item.ArtifactType,
@@ -178,6 +197,22 @@ public class BackupService : IBackupService
                 VerificationStatus = BackupVerificationStatus.Failed
             };
         }
+
+        backup.SessionId = sessionId;
+        _inMemoryBackups[backup.Id] = backup;
+        if (_reconciliationRepository != null)
+        {
+            try
+            {
+                await _reconciliationRepository.SaveBackupAsync(backup, cancellationToken);
+            }
+            catch
+            {
+                // Fallback to in-memory backup cache
+            }
+        }
+
+        return backup;
     }
 
     public async Task<BackupVerificationResult> VerifyBackupAsync(Backup backup, CancellationToken cancellationToken = default)
@@ -215,13 +250,38 @@ public class BackupService : IBackupService
             backup.FailureReason = result.FailureReason;
         }
 
+        _inMemoryBackups[backup.Id] = backup;
+        if (_reconciliationRepository != null)
+        {
+            try
+            {
+                await _reconciliationRepository.SaveBackupAsync(backup, cancellationToken);
+            }
+            catch
+            {
+                // Fallback to in-memory backup cache
+            }
+        }
+
         return result;
     }
 
-
-    public Task<Backup?> GetBackupAsync(Guid backupId, CancellationToken cancellationToken = default)
+    public async Task<Backup?> GetBackupAsync(Guid backupId, CancellationToken cancellationToken = default)
     {
-        // To be implemented when a persistence layer (e.g., manifest reader or database) is added.
-        throw new NotImplementedException();
+        if (_reconciliationRepository != null)
+        {
+            try
+            {
+                var persisted = await _reconciliationRepository.GetBackupAsync(backupId, cancellationToken);
+                if (persisted != null) return persisted;
+            }
+            catch
+            {
+                // Fallback to in-memory backup cache
+            }
+        }
+
+        _inMemoryBackups.TryGetValue(backupId, out var inMemory);
+        return inMemory;
     }
 }
