@@ -177,7 +177,7 @@ public class DependencyInjectionValidationTests
                 Id = Guid.NewGuid(),
                 Path = targetFile,
                 ArtifactType = ArtifactType.File,
-                Classification = ArtifactClassification.UserData,
+                Classification = ArtifactClassification.ApplicationOwned,
                 RiskLevel = RiskLevel.Low,
                 Recommended = true
             };
@@ -259,6 +259,7 @@ public class DependencyInjectionValidationTests
                     Id = Guid.NewGuid(),
                     Path = file,
                     ArtifactType = ArtifactType.File,
+                    Classification = ArtifactClassification.ApplicationOwned,
                     RiskLevel = RiskLevel.Low,
                     Recommended = true
                 };
@@ -285,6 +286,85 @@ public class DependencyInjectionValidationTests
                 try { Directory.Delete(tempDir, true); } catch { }
             }
         }
+    }
+
+    [Fact]
+    public async Task CleanupExecution_NavigationAwayWhileRunning_DefersScopeDisposalUntilExecutionComplete()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_NavDefer_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var targetFile = Path.Combine(tempDir, "deferred.log");
+        File.WriteAllText(targetFile, "data");
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+            }
+
+            var appEntity = new Application { Id = Guid.NewGuid(), Name = "NavDefer App", InstallLocation = tempDir };
+            var item = new CleanupPlanItem
+            {
+                Id = Guid.NewGuid(),
+                Path = targetFile,
+                ArtifactType = ArtifactType.File,
+                Classification = ArtifactClassification.ApplicationOwned,
+                RiskLevel = RiskLevel.Low,
+                Recommended = true
+            };
+            var plan = new CleanupPlan
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = appEntity.Id,
+                UninstallSessionId = Guid.NewGuid(),
+                Items = new List<CleanupPlanItem> { item }
+            };
+
+            var execVm = cleanupFactory.CreateExecutionViewModel(plan, appEntity, new[] { item.Id });
+
+            // Start async execution in background
+            var execTask = execVm.StartExecutionAsync();
+
+            // Simulate user immediately navigating away while execution is active
+            execVm.Dispose();
+
+            // Wait for execution to finish
+            await execTask;
+
+            // Verify execution was protected and completed successfully
+            Assert.Equal(1, execVm.SuccessCount);
+            Assert.False(File.Exists(targetFile));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void DisposedScope_CannotResolveServices()
+    {
+        var provider = CreateProductionServiceProvider();
+        var scope = provider.CreateScope();
+        var sp = scope.ServiceProvider;
+
+        // Resolving within alive scope works
+        var engine = sp.GetRequiredService<ICleanupTransactionEngine>();
+        Assert.NotNull(engine);
+
+        // Dispose scope
+        scope.Dispose();
+
+        // Resolving from disposed scope must throw ObjectDisposedException
+        Assert.Throws<ObjectDisposedException>(() => sp.GetRequiredService<ICleanupTransactionEngine>());
     }
 
     [Fact]

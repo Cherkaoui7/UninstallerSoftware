@@ -34,6 +34,8 @@ public class DependencyInjectionTests
 
         services.AddSingleton<IErrorBoundaryService, ErrorBoundaryService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
+        services.AddSingleton<IHistoryViewModelFactory, HistoryViewModelFactory>();
         
         services.AddTransient<ApplicationDetailsViewModel>();
 

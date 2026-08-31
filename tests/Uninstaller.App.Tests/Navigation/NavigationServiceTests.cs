@@ -23,6 +23,8 @@ public class NavigationServiceTests
 
         // Navigation service needs to be resolved by VMs
         services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<IHistoryViewModelFactory, HistoryViewModelFactory>();
+        services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
 
         services.AddTransient<DashboardViewModel>();
         services.AddTransient<ApplicationsViewModel>(sp => null!); // Mocked out or stubbed later if needed for full tests
