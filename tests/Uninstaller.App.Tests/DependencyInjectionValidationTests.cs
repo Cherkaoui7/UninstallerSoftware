@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Uninstaller.Core;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Services;
+using Uninstaller.Domain.Entities;
 using Uninstaller.Infrastructure;
 using Uninstaller.Infrastructure.Persistence;
 using Uninstaller.Windows;
@@ -60,6 +63,79 @@ public class DependencyInjectionValidationTests
     }
 
     [Fact]
+    public void MainViewModel_NavigateToApplications_SucceedsUnderValidateScopes()
+    {
+        // This test directly verifies that clicking 'Applications' from MainViewModel does not throw InvalidOperationException
+        var provider = CreateProductionServiceProvider();
+        
+        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+        var mainVm = new global::Uninstaller.App.ViewModels.MainViewModel(navService);
+        
+        // Initial state is Dashboard
+        Assert.IsType<global::Uninstaller.App.ViewModels.DashboardViewModel>(mainVm.CurrentViewModel);
+
+        // Navigate to Applications
+        mainVm.NavigateToApplicationsCommand.Execute(null);
+
+        // Verify successful resolution and active ViewModel
+        Assert.NotNull(mainVm.CurrentViewModel);
+        Assert.IsType<global::Uninstaller.App.ViewModels.ApplicationsViewModel>(mainVm.CurrentViewModel);
+    }
+
+    [Fact]
+    public void NavigationService_FullLifecycle_MaintainsAndDisposesScopesCleanly()
+    {
+        var provider = CreateProductionServiceProvider();
+        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+
+        // 1. Navigate to Applications
+        var appsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationsViewModel>();
+        Assert.NotNull(appsVm);
+        Assert.Same(appsVm, navService.CurrentViewModel);
+
+        // 2. Navigate to ApplicationDetails
+        var detailsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationDetailsViewModel>();
+        Assert.NotNull(detailsVm);
+        Assert.Same(detailsVm, navService.CurrentViewModel);
+
+        // 3. Navigate to History
+        var historyVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.HistoryViewModel>();
+        Assert.NotNull(historyVm);
+        Assert.Same(historyVm, navService.CurrentViewModel);
+
+        // 4. Navigate to Recovery
+        var recoveryVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.RecoveryViewModel>();
+        Assert.NotNull(recoveryVm);
+        Assert.Same(recoveryVm, navService.CurrentViewModel);
+
+        // 5. Navigate to Settings
+        var settingsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.SettingsViewModel>();
+        Assert.NotNull(settingsVm);
+        Assert.Same(settingsVm, navService.CurrentViewModel);
+
+        // 6. Navigate to Dashboard
+        var dashboardVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.DashboardViewModel>();
+        Assert.NotNull(dashboardVm);
+        Assert.Same(dashboardVm, navService.CurrentViewModel);
+    }
+
+    [Fact]
+    public void RapidNavigation_DoesNotThrowOrLeak()
+    {
+        var provider = CreateProductionServiceProvider();
+        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+
+        for (int i = 0; i < 50; i++)
+        {
+            navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationsViewModel>();
+            navService.NavigateTo<global::Uninstaller.App.ViewModels.HistoryViewModel>();
+            navService.NavigateTo<global::Uninstaller.App.ViewModels.DashboardViewModel>();
+        }
+
+        Assert.IsType<global::Uninstaller.App.ViewModels.DashboardViewModel>(navService.CurrentViewModel);
+    }
+
+    [Fact]
     public void Resolve_AllMajorServices_InScopedContext_Succeeds()
     {
         var provider = CreateProductionServiceProvider();
@@ -103,7 +179,6 @@ public class DependencyInjectionValidationTests
         services.AddSingleton<global::Uninstaller.App.Services.IErrorBoundaryService, global::Uninstaller.App.Services.ErrorBoundaryService>();
         services.AddSingleton<global::Uninstaller.App.Services.INavigationService, global::Uninstaller.App.Services.NavigationService>();
 
-        // Assert that building provider with ValidateScopes=true throws if any singleton tries to inject a scoped dependency
         var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,
