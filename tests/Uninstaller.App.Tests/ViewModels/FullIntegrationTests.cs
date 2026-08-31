@@ -68,6 +68,8 @@ public class FullIntegrationTests
         services.AddSingleton<INavigationService>(mockNavigation.Object);
         services.AddSingleton(new Mock<IErrorBoundaryService>().Object);
         
+        services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
+        
         var provider = services.BuildServiceProvider();
         
         var vm = new ApplicationDetailsViewModel(
@@ -76,7 +78,7 @@ public class FullIntegrationTests
             provider.GetRequiredService<IApplicationRepository>(),
             provider.GetRequiredService<IUninstallSessionRepository>(),
             provider.GetRequiredService<INavigationService>(),
-            provider,
+            provider.GetRequiredService<ICleanupViewModelFactory>(),
             provider.GetRequiredService<IErrorBoundaryService>()
         );
         

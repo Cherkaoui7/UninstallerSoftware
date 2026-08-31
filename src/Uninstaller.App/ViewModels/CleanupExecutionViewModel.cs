@@ -24,8 +24,10 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
     private readonly CleanupPlan _plan;
     private readonly AppEntity _application;
     private readonly List<Guid> _selectedItemIds;
+    private readonly IServiceScope? _ownedScope;
     private CancellationTokenSource? _cts;
     private bool _isDisposed;
+    private int _activeExecutionCount = 0;
 
     public CleanupExecutionViewModel(
         CleanupPlan plan,
@@ -34,7 +36,8 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         ICleanupTransactionEngine transactionEngine,
         IObservableItemExecutionTracker tracker,
         INavigationService navigationService,
-        IErrorBoundaryService errorBoundary) : base(errorBoundary)
+        IErrorBoundaryService errorBoundary,
+        IServiceScope? ownedScope = null) : base(errorBoundary)
     {
         _plan = plan;
         _application = application;
@@ -42,6 +45,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         _transactionEngine = transactionEngine;
         _tracker = tracker;
         _navigationService = navigationService;
+        _ownedScope = ownedScope;
 
         Items = new ObservableCollection<CleanupItemExecutionViewModel>(
             _plan.Items
@@ -109,6 +113,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
         CancelCommand.NotifyCanExecuteChanged();
 
         _tracker.StateChanged += OnTrackerStateChanged;
+        Interlocked.Increment(ref _activeExecutionCount);
 
         try
         {
@@ -126,6 +131,19 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
             _cts?.Dispose();
             _cts = null;
             CancelCommand.NotifyCanExecuteChanged();
+            Interlocked.Decrement(ref _activeExecutionCount);
+
+            if (_isDisposed)
+            {
+                try
+                {
+                    _ownedScope?.Dispose();
+                }
+                catch
+                {
+                    // Safe cleanup
+                }
+            }
         }
     }
 
@@ -228,6 +246,18 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
             _tracker.StateChanged -= OnTrackerStateChanged;
             _cts?.Dispose();
             _isDisposed = true;
+
+            if (Interlocked.CompareExchange(ref _activeExecutionCount, 0, 0) == 0)
+            {
+                try
+                {
+                    _ownedScope?.Dispose();
+                }
+                catch
+                {
+                    // Safe cleanup
+                }
+            }
         }
     }
 }

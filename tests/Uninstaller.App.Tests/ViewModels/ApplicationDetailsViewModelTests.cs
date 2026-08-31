@@ -33,6 +33,7 @@ public class ApplicationDetailsViewModelTests
     private readonly Mock<IResidualAnalysisService> _mockAnalysis;
     private readonly Mock<IApplicationRepository> _mockRepo;
     private readonly Mock<IUninstallSessionRepository> _mockSessionRepo;
+    private readonly Mock<ICleanupViewModelFactory> _mockCleanupFactory;
     private readonly Mock<IErrorBoundaryService> _mockError;
 
     public ApplicationDetailsViewModelTests()
@@ -41,6 +42,7 @@ public class ApplicationDetailsViewModelTests
         _mockAnalysis = new Mock<IResidualAnalysisService>();
         _mockRepo = new Mock<IApplicationRepository>();
         _mockSessionRepo = new Mock<IUninstallSessionRepository>();
+        _mockCleanupFactory = new Mock<ICleanupViewModelFactory>();
         _mockError = new Mock<IErrorBoundaryService>();
     }
 
@@ -52,7 +54,7 @@ public class ApplicationDetailsViewModelTests
             _mockRepo.Object, 
             _mockSessionRepo.Object,
             new Mock<INavigationService>().Object, 
-            ServiceProviderMock.Create(), 
+            _mockCleanupFactory.Object, 
             _mockError.Object);
     }
 

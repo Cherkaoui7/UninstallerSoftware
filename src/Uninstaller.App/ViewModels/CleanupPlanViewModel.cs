@@ -16,7 +16,7 @@ namespace Uninstaller.App.ViewModels;
 public partial class CleanupPlanViewModel : ViewModelBase
 {
     private readonly INavigationService _navigationService;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ICleanupViewModelFactory _cleanupFactory;
     private readonly CleanupPlan _plan;
     private readonly Application _application;
 
@@ -24,13 +24,13 @@ public partial class CleanupPlanViewModel : ViewModelBase
         CleanupPlan plan,
         Application application,
         INavigationService navigationService,
-        IServiceProvider serviceProvider,
+        ICleanupViewModelFactory cleanupFactory,
         IErrorBoundaryService errorBoundary) : base(errorBoundary)
     {
         _plan = plan;
         _application = application;
         _navigationService = navigationService;
-        _serviceProvider = serviceProvider;
+        _cleanupFactory = cleanupFactory;
 
         Items = new ObservableCollection<CleanupItemViewModel>(
             plan.Items.Select(i => 
@@ -160,8 +160,7 @@ public partial class CleanupPlanViewModel : ViewModelBase
         
         var selectedIds = Items.Where(i => i.IsSelected).Select(i => i.Id).ToList();
 
-        var execVm = ActivatorUtilities.CreateInstance<CleanupExecutionViewModel>(
-            _serviceProvider, _plan, _application, selectedIds);
+        var execVm = _cleanupFactory.CreateExecutionViewModel(_plan, _application, selectedIds);
             
         _navigationService.NavigateTo(execVm);
     }

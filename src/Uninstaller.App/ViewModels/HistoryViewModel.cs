@@ -16,6 +16,7 @@ public partial class HistoryViewModel : ViewModelBase
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly INavigationService _navigationService;
+    private readonly IHistoryViewModelFactory _historyViewModelFactory;
 
     [ObservableProperty]
     private ObservableCollection<HistoryActivity> _activities = new();
@@ -26,11 +27,16 @@ public partial class HistoryViewModel : ViewModelBase
     [ObservableProperty]
     private string _searchQuery = string.Empty;
 
-    public HistoryViewModel(IErrorBoundaryService errorBoundary, IHistoryRepository historyRepository, INavigationService navigationService) 
+    public HistoryViewModel(
+        IErrorBoundaryService errorBoundary, 
+        IHistoryRepository historyRepository, 
+        INavigationService navigationService,
+        IHistoryViewModelFactory historyViewModelFactory) 
         : base(errorBoundary)
     {
         _historyRepository = historyRepository;
         _navigationService = navigationService;
+        _historyViewModelFactory = historyViewModelFactory;
         State = Enums.UIState.Idle;
     }
 
@@ -62,7 +68,7 @@ public partial class HistoryViewModel : ViewModelBase
     {
         if (activity != null)
         {
-            _navigationService.NavigateTo(new ApplicationHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, activity.ApplicationId, activity.ApplicationName));
+            _navigationService.NavigateTo(_historyViewModelFactory.CreateApplicationHistoryViewModel(activity.ApplicationId, activity.ApplicationName));
         }
     }
 
@@ -73,11 +79,11 @@ public partial class HistoryViewModel : ViewModelBase
 
         if (activity.ActivityType == ActivityType.Cleanup)
         {
-            _navigationService.NavigateTo(new CleanupSessionHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, activity.SessionId));
+            _navigationService.NavigateTo(_historyViewModelFactory.CreateCleanupSessionHistoryViewModel(activity.SessionId));
         }
         else if (activity.ActivityType == ActivityType.Recovery)
         {
-            _navigationService.NavigateTo(new RecoverySessionHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, activity.SessionId));
+            _navigationService.NavigateTo(_historyViewModelFactory.CreateRecoverySessionHistoryViewModel(activity.SessionId));
         }
         else
         {

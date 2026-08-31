@@ -88,12 +88,10 @@ public class PostUninstallResidualAnalysisIntegrationTests
     private readonly Mock<IDiscoveryService> _discoveryServiceMock = new();
     private readonly IServiceProvider _serviceProvider;
 
+    private readonly Mock<ICleanupViewModelFactory> _cleanupFactoryMock = new();
+
     public PostUninstallResidualAnalysisIntegrationTests()
     {
-        var services = new ServiceCollection();
-        services.AddSingleton<INavigationService>(_navServiceMock.Object);
-        services.AddSingleton<IErrorBoundaryService>(_errorBoundaryMock.Object);
-        _serviceProvider = services.BuildServiceProvider();
     }
 
     [Fact]
@@ -146,7 +144,7 @@ public class PostUninstallResidualAnalysisIntegrationTests
             _appRepo,
             _sessionRepo,
             _navServiceMock.Object,
-            _serviceProvider,
+            _cleanupFactoryMock.Object,
             _errorBoundaryMock.Object);
 
         detailsVm.LoadApplication(appVm);
@@ -177,7 +175,7 @@ public class PostUninstallResidualAnalysisIntegrationTests
             _appRepo,
             _sessionRepo,
             _navServiceMock.Object,
-            _serviceProvider,
+            _cleanupFactoryMock.Object,
             _errorBoundaryMock.Object);
 
         detailsVm2.LoadApplication(uninstalledAppVm);

@@ -10,10 +10,11 @@ using Uninstaller.Core.Models.History;
 
 namespace Uninstaller.App.ViewModels;
 
-public partial class ApplicationHistoryViewModel : ViewModelBase
+public partial class ApplicationHistoryViewModel : ViewModelBase, IDisposable
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly INavigationService _navigationService;
+    private readonly IServiceScope? _ownedScope;
 
     public Guid ApplicationId { get; }
     public string ApplicationName { get; }
@@ -26,11 +27,13 @@ public partial class ApplicationHistoryViewModel : ViewModelBase
         IHistoryRepository historyRepository, 
         INavigationService navigationService, 
         Guid applicationId, 
-        string applicationName) 
+        string applicationName,
+        IServiceScope? ownedScope = null) 
         : base(errorBoundary)
     {
         _historyRepository = historyRepository;
         _navigationService = navigationService;
+        _ownedScope = ownedScope;
         ApplicationId = applicationId;
         ApplicationName = applicationName;
         State = Enums.UIState.Idle;
@@ -70,6 +73,18 @@ public partial class ApplicationHistoryViewModel : ViewModelBase
         else if (evt.ActivityType == ActivityType.Recovery)
         {
             _navigationService.NavigateTo(new RecoverySessionHistoryViewModel(ErrorBoundary, _historyRepository, _navigationService, evt.RelatedSessionId.Value));
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _ownedScope?.Dispose();
+        }
+        catch
+        {
+            // Safe cleanup
         }
     }
 }

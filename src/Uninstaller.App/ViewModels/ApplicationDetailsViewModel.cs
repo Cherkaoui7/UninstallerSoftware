@@ -16,7 +16,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
     private readonly IApplicationRepository _repository;
     private readonly IUninstallSessionRepository _sessionRepository;
     private readonly INavigationService _navigationService;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ICleanupViewModelFactory _cleanupFactory;
     private CancellationTokenSource? _cancellationTokenSource;
 
     public ApplicationDetailsViewModel(
@@ -25,7 +25,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
         IApplicationRepository repository,
         IUninstallSessionRepository sessionRepository,
         INavigationService navigationService,
-        IServiceProvider serviceProvider,
+        ICleanupViewModelFactory cleanupFactory,
         IErrorBoundaryService errorBoundary) : base(errorBoundary)
     {
         _uninstallService = uninstallService;
@@ -33,7 +33,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
         _repository = repository;
         _sessionRepository = sessionRepository;
         _navigationService = navigationService;
-        _serviceProvider = serviceProvider;
+        _cleanupFactory = cleanupFactory;
         
         State = UIState.Ready;
     }
@@ -139,7 +139,7 @@ public partial class ApplicationDetailsViewModel : ViewModelBase
                 State = UIState.Success;
                 StatusMessage = $"Analysis complete. Found {session.Plan.Items.Count} potential residuals.";
                 
-                var cleanupPlanVm = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<CleanupPlanViewModel>(_serviceProvider, session.Plan, appEntity);
+                var cleanupPlanVm = _cleanupFactory.CreatePlanViewModel(session.Plan, appEntity);
                 _navigationService.NavigateTo(cleanupPlanVm);
             }
             else

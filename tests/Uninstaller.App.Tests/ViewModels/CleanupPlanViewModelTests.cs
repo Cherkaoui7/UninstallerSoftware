@@ -17,6 +17,7 @@ namespace Uninstaller.App.Tests.ViewModels;
 public class CleanupPlanViewModelTests
 {
     private readonly Mock<INavigationService> _mockNavigation;
+    private readonly Mock<ICleanupViewModelFactory> _mockCleanupFactory;
     private readonly Mock<IErrorBoundaryService> _mockErrorBoundary;
     private readonly Application _appEntity;
     private readonly CleanupPlan _plan;
@@ -24,6 +25,7 @@ public class CleanupPlanViewModelTests
     public CleanupPlanViewModelTests()
     {
         _mockNavigation = new Mock<INavigationService>();
+        _mockCleanupFactory = new Mock<ICleanupViewModelFactory>();
         _mockErrorBoundary = new Mock<IErrorBoundaryService>();
         
         _appEntity = new Application { Id = Guid.NewGuid(), Name = "Test App" };
@@ -40,20 +42,11 @@ public class CleanupPlanViewModelTests
 
     private CleanupPlanViewModel CreateViewModel()
     {
-        var services = new ServiceCollection();
-        // Register required services to resolve the next view model
-        services.AddSingleton(new Mock<ICleanupTransactionEngine>());
-        services.AddSingleton<ICleanupTransactionEngine>(sp => sp.GetRequiredService<Mock<ICleanupTransactionEngine>>().Object);
-        services.AddTransient<IObservableItemExecutionTracker, ObservableItemExecutionTracker>();
-        services.AddSingleton(_mockNavigation.Object);
-        services.AddSingleton(_mockErrorBoundary.Object);
-        var sp = services.BuildServiceProvider();
-        
         return new CleanupPlanViewModel(
             _plan,
             _appEntity,
             _mockNavigation.Object,
-            sp,
+            _mockCleanupFactory.Object,
             _mockErrorBoundary.Object);
     }
 

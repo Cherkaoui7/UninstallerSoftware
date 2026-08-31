@@ -38,6 +38,8 @@ public partial class App : Application
 
                 services.AddSingleton<Services.IErrorBoundaryService, Services.ErrorBoundaryService>();
                 services.AddSingleton<Services.INavigationService, Services.NavigationService>();
+                services.AddSingleton<Services.ICleanupViewModelFactory, Services.CleanupViewModelFactory>();
+                services.AddSingleton<Services.IHistoryViewModelFactory, Services.HistoryViewModelFactory>();
                 
                 // ViewModels resolved directly via DI
                 services.AddTransient<ViewModels.MainViewModel>();

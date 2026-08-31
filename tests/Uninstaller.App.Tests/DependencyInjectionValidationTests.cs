@@ -1,13 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Uninstaller.App.Services;
+using Uninstaller.App.ViewModels;
 using Uninstaller.Core;
 using Uninstaller.Core.Abstractions;
 using Uninstaller.Core.Services;
 using Uninstaller.Domain.Entities;
+using Uninstaller.Domain.Enums;
 using Uninstaller.Infrastructure;
 using Uninstaller.Infrastructure.Persistence;
 using Uninstaller.Windows;
@@ -26,26 +32,28 @@ public class DependencyInjectionValidationTests
         services.AddInfrastructure();
         services.AddWindows();
         
-        services.AddSingleton<global::Uninstaller.App.Services.ObservableItemExecutionTracker>();
-        services.AddSingleton<global::Uninstaller.App.Services.IObservableItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableItemExecutionTracker>());
-        services.AddSingleton<Core.Abstractions.IItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableItemExecutionTracker>());
+        services.AddSingleton<ObservableItemExecutionTracker>();
+        services.AddSingleton<IObservableItemExecutionTracker>(sp => sp.GetRequiredService<ObservableItemExecutionTracker>());
+        services.AddSingleton<IItemExecutionTracker>(sp => sp.GetRequiredService<ObservableItemExecutionTracker>());
         
-        services.AddSingleton<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>();
-        services.AddSingleton<global::Uninstaller.App.Services.IObservableRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>());
-        services.AddSingleton<Core.Abstractions.IRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>());
+        services.AddSingleton<ObservableRecoveryItemExecutionTracker>();
+        services.AddSingleton<IObservableRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<ObservableRecoveryItemExecutionTracker>());
+        services.AddSingleton<IRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<ObservableRecoveryItemExecutionTracker>());
 
-        services.AddSingleton<global::Uninstaller.App.Services.IErrorBoundaryService, global::Uninstaller.App.Services.ErrorBoundaryService>();
-        services.AddSingleton<global::Uninstaller.App.Services.INavigationService, global::Uninstaller.App.Services.NavigationService>();
+        services.AddSingleton<IErrorBoundaryService, ErrorBoundaryService>();
+        services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
+        services.AddSingleton<IHistoryViewModelFactory, HistoryViewModelFactory>();
         
         // ViewModels resolved directly via DI
-        services.AddTransient<global::Uninstaller.App.ViewModels.MainViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.DashboardViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.ApplicationsViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.ApplicationDetailsViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.RecoveryViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.HistoryViewModel>();
-        services.AddTransient<global::Uninstaller.App.ViewModels.SettingsViewModel>();
-        services.AddTransient<global::Uninstaller.App.MainWindow>();
+        services.AddTransient<MainViewModel>();
+        services.AddTransient<DashboardViewModel>();
+        services.AddTransient<ApplicationsViewModel>();
+        services.AddTransient<ApplicationDetailsViewModel>();
+        services.AddTransient<RecoveryViewModel>();
+        services.AddTransient<HistoryViewModel>();
+        services.AddTransient<SettingsViewModel>();
+        services.AddTransient<MainWindow>();
 
         // Build with strict validation
         return services.BuildServiceProvider(new ServiceProviderOptions
@@ -65,56 +73,56 @@ public class DependencyInjectionValidationTests
     [Fact]
     public void MainViewModel_NavigateToApplications_SucceedsUnderValidateScopes()
     {
-        // This test directly verifies that clicking 'Applications' from MainViewModel does not throw InvalidOperationException
+        // Direct regression test verifying MainViewModel.NavigateToApplications() does not throw under ValidateScopes=true
         var provider = CreateProductionServiceProvider();
         
-        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
-        var mainVm = new global::Uninstaller.App.ViewModels.MainViewModel(navService);
+        var navService = provider.GetRequiredService<INavigationService>();
+        var mainVm = new MainViewModel(navService);
         
         // Initial state is Dashboard
-        Assert.IsType<global::Uninstaller.App.ViewModels.DashboardViewModel>(mainVm.CurrentViewModel);
+        Assert.IsType<DashboardViewModel>(mainVm.CurrentViewModel);
 
         // Navigate to Applications
         mainVm.NavigateToApplicationsCommand.Execute(null);
 
         // Verify successful resolution and active ViewModel
         Assert.NotNull(mainVm.CurrentViewModel);
-        Assert.IsType<global::Uninstaller.App.ViewModels.ApplicationsViewModel>(mainVm.CurrentViewModel);
+        Assert.IsType<ApplicationsViewModel>(mainVm.CurrentViewModel);
     }
 
     [Fact]
     public void NavigationService_FullLifecycle_MaintainsAndDisposesScopesCleanly()
     {
         var provider = CreateProductionServiceProvider();
-        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+        var navService = provider.GetRequiredService<INavigationService>();
 
         // 1. Navigate to Applications
-        var appsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationsViewModel>();
+        var appsVm = navService.NavigateTo<ApplicationsViewModel>();
         Assert.NotNull(appsVm);
         Assert.Same(appsVm, navService.CurrentViewModel);
 
         // 2. Navigate to ApplicationDetails
-        var detailsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationDetailsViewModel>();
+        var detailsVm = navService.NavigateTo<ApplicationDetailsViewModel>();
         Assert.NotNull(detailsVm);
         Assert.Same(detailsVm, navService.CurrentViewModel);
 
         // 3. Navigate to History
-        var historyVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.HistoryViewModel>();
+        var historyVm = navService.NavigateTo<HistoryViewModel>();
         Assert.NotNull(historyVm);
         Assert.Same(historyVm, navService.CurrentViewModel);
 
         // 4. Navigate to Recovery
-        var recoveryVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.RecoveryViewModel>();
+        var recoveryVm = navService.NavigateTo<RecoveryViewModel>();
         Assert.NotNull(recoveryVm);
         Assert.Same(recoveryVm, navService.CurrentViewModel);
 
         // 5. Navigate to Settings
-        var settingsVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.SettingsViewModel>();
+        var settingsVm = navService.NavigateTo<SettingsViewModel>();
         Assert.NotNull(settingsVm);
         Assert.Same(settingsVm, navService.CurrentViewModel);
 
         // 6. Navigate to Dashboard
-        var dashboardVm = navService.NavigateTo<global::Uninstaller.App.ViewModels.DashboardViewModel>();
+        var dashboardVm = navService.NavigateTo<DashboardViewModel>();
         Assert.NotNull(dashboardVm);
         Assert.Same(dashboardVm, navService.CurrentViewModel);
     }
@@ -123,16 +131,160 @@ public class DependencyInjectionValidationTests
     public void RapidNavigation_DoesNotThrowOrLeak()
     {
         var provider = CreateProductionServiceProvider();
-        var navService = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+        var navService = provider.GetRequiredService<INavigationService>();
 
         for (int i = 0; i < 50; i++)
         {
-            navService.NavigateTo<global::Uninstaller.App.ViewModels.ApplicationsViewModel>();
-            navService.NavigateTo<global::Uninstaller.App.ViewModels.HistoryViewModel>();
-            navService.NavigateTo<global::Uninstaller.App.ViewModels.DashboardViewModel>();
+            navService.NavigateTo<ApplicationsViewModel>();
+            navService.NavigateTo<HistoryViewModel>();
+            navService.NavigateTo<DashboardViewModel>();
         }
 
-        Assert.IsType<global::Uninstaller.App.ViewModels.DashboardViewModel>(navService.CurrentViewModel);
+        Assert.IsType<DashboardViewModel>(navService.CurrentViewModel);
+    }
+
+    [Fact]
+    public async Task CleanupExecution_DedicatedScope_ExecutesWithoutObjectDisposedException()
+    {
+        // 1. Setup real production container with isolated SQLite DB and temporary directory
+        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_DI_Test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var targetFile = Path.Combine(tempDir, "sample_residual.log");
+        File.WriteAllText(targetFile, "temporary residual payload");
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+            var navService = provider.GetRequiredService<INavigationService>();
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+
+            // Ensure DB schema exists in production provider
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+            }
+
+            var appEntity = new Application
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test App DI Lifecycle",
+                InstallLocation = tempDir
+            };
+
+            var planItem = new CleanupPlanItem
+            {
+                Id = Guid.NewGuid(),
+                Path = targetFile,
+                Type = ArtifactType.File,
+                Classification = ArtifactClassification.UserData,
+                RiskLevel = RiskLevel.Low,
+                Recommended = true
+            };
+
+            var plan = new CleanupPlan
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = appEntity.Id,
+                UninstallSessionId = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow,
+                Items = new List<CleanupPlanItem> { planItem }
+            };
+
+            // 2. Navigate to CleanupPlanViewModel via factory
+            var planVm = cleanupFactory.CreatePlanViewModel(plan, appEntity);
+            navService.NavigateTo(planVm);
+
+            Assert.Same(planVm, navService.CurrentViewModel);
+            Assert.Equal(1, planVm.TotalArtifacts);
+            Assert.True(planVm.Items[0].IsSelected);
+
+            // 3. Review cleanup and open confirmation
+            planVm.ReviewCleanupCommand.Execute(null);
+            Assert.True(planVm.IsConfirmationVisible);
+
+            // 4. Confirm and execute cleanup via ExecuteCleanup
+            planVm.ExecuteCleanupCommand.Execute(null);
+
+            // 5. Verify navigation transitioned to CleanupExecutionViewModel
+            var execVm = navService.CurrentViewModel as CleanupExecutionViewModel;
+            Assert.NotNull(execVm);
+
+            // 6. Execute cleanup through real production transaction engine
+            await execVm.StartExecutionAsync();
+
+            // 7. Verify successful execution without ObjectDisposedException
+            Assert.Equal(1, execVm.SuccessCount);
+            Assert.Equal(0, execVm.FailedCount);
+            Assert.False(File.Exists(targetFile));
+
+            // 8. Disposing the execution ViewModel disposes its owned scope deterministically
+            execVm.Dispose();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RepeatedCleanup_50Operations_DoNotLeakOrReuseDisposedScopes()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "Uninstaller_Repeat_Test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+            }
+
+            var appEntity = new Application { Id = Guid.NewGuid(), Name = "Repeat App" };
+
+            for (int i = 0; i < 50; i++)
+            {
+                var file = Path.Combine(tempDir, $"res_{i}.txt");
+                File.WriteAllText(file, "content");
+
+                var item = new CleanupPlanItem
+                {
+                    Id = Guid.NewGuid(),
+                    Path = file,
+                    Type = ArtifactType.File,
+                    RiskLevel = RiskLevel.Low,
+                    Recommended = true
+                };
+
+                var plan = new CleanupPlan
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = appEntity.Id,
+                    UninstallSessionId = Guid.NewGuid(),
+                    Items = new List<CleanupPlanItem> { item }
+                };
+
+                var execVm = cleanupFactory.CreateExecutionViewModel(plan, appEntity, new[] { item.Id });
+                await execVm.StartExecutionAsync();
+
+                Assert.Equal(1, execVm.SuccessCount);
+                execVm.Dispose();
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
     }
 
     [Fact]
@@ -170,14 +322,16 @@ public class DependencyInjectionValidationTests
         services.AddCore();
         services.AddInfrastructure();
         services.AddWindows();
-        services.AddSingleton<global::Uninstaller.App.Services.ObservableItemExecutionTracker>();
-        services.AddSingleton<global::Uninstaller.App.Services.IObservableItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableItemExecutionTracker>());
-        services.AddSingleton<Core.Abstractions.IItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableItemExecutionTracker>());
-        services.AddSingleton<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>();
-        services.AddSingleton<global::Uninstaller.App.Services.IObservableRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>());
-        services.AddSingleton<Core.Abstractions.IRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<global::Uninstaller.App.Services.ObservableRecoveryItemExecutionTracker>());
-        services.AddSingleton<global::Uninstaller.App.Services.IErrorBoundaryService, global::Uninstaller.App.Services.ErrorBoundaryService>();
-        services.AddSingleton<global::Uninstaller.App.Services.INavigationService, global::Uninstaller.App.Services.NavigationService>();
+        services.AddSingleton<ObservableItemExecutionTracker>();
+        services.AddSingleton<IObservableItemExecutionTracker>(sp => sp.GetRequiredService<ObservableItemExecutionTracker>());
+        services.AddSingleton<IItemExecutionTracker>(sp => sp.GetRequiredService<ObservableItemExecutionTracker>());
+        services.AddSingleton<ObservableRecoveryItemExecutionTracker>();
+        services.AddSingleton<IObservableRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<ObservableRecoveryItemExecutionTracker>());
+        services.AddSingleton<IRecoveryItemExecutionTracker>(sp => sp.GetRequiredService<ObservableRecoveryItemExecutionTracker>());
+        services.AddSingleton<IErrorBoundaryService, ErrorBoundaryService>();
+        services.AddSingleton<INavigationService, NavigationService>();
+        services.AddSingleton<ICleanupViewModelFactory, CleanupViewModelFactory>();
+        services.AddSingleton<IHistoryViewModelFactory, HistoryViewModelFactory>();
 
         var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -210,10 +364,16 @@ public class DependencyInjectionValidationTests
         var backupStorage = provider.GetRequiredService<IBackupStorage>();
         Assert.NotNull(backupStorage);
 
-        var nav = provider.GetRequiredService<global::Uninstaller.App.Services.INavigationService>();
+        var nav = provider.GetRequiredService<INavigationService>();
         Assert.NotNull(nav);
 
-        var errorBoundary = provider.GetRequiredService<global::Uninstaller.App.Services.IErrorBoundaryService>();
+        var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+        Assert.NotNull(cleanupFactory);
+
+        var historyFactory = provider.GetRequiredService<IHistoryViewModelFactory>();
+        Assert.NotNull(historyFactory);
+
+        var errorBoundary = provider.GetRequiredService<IErrorBoundaryService>();
         Assert.NotNull(errorBoundary);
     }
 }

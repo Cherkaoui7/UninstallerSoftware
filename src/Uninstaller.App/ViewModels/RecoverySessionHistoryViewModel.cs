@@ -11,10 +11,11 @@ using Uninstaller.Core.Models.History;
 
 namespace Uninstaller.App.ViewModels;
 
-public partial class RecoverySessionHistoryViewModel : ViewModelBase
+public partial class RecoverySessionHistoryViewModel : ViewModelBase, IDisposable
 {
     private readonly IHistoryRepository _historyRepository;
     private readonly INavigationService _navigationService;
+    private readonly IServiceScope? _ownedScope;
 
     public Guid SessionId { get; }
 
@@ -28,11 +29,13 @@ public partial class RecoverySessionHistoryViewModel : ViewModelBase
         IErrorBoundaryService errorBoundary, 
         IHistoryRepository historyRepository, 
         INavigationService navigationService, 
-        Guid sessionId) 
+        Guid sessionId,
+        IServiceScope? ownedScope = null) 
         : base(errorBoundary)
     {
         _historyRepository = historyRepository;
         _navigationService = navigationService;
+        _ownedScope = ownedScope;
         SessionId = sessionId;
         State = Enums.UIState.Idle;
     }
@@ -58,5 +61,17 @@ public partial class RecoverySessionHistoryViewModel : ViewModelBase
     private void GoBack()
     {
         _navigationService.NavigateTo<HistoryViewModel>();
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            _ownedScope?.Dispose();
+        }
+        catch
+        {
+            // Safe cleanup
+        }
     }
 }
