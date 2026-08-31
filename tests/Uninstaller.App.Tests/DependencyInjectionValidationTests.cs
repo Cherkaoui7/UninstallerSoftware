@@ -159,19 +159,29 @@ public class DependencyInjectionValidationTests
             var navService = provider.GetRequiredService<INavigationService>();
             var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
 
-            // Ensure DB schema exists in production provider
-            using (var initScope = provider.CreateScope())
-            {
-                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await db.Database.EnsureCreatedAsync();
-            }
-
             var appEntity = new Application
             {
                 Id = Guid.NewGuid(),
                 Name = "Test App DI Lifecycle",
                 InstallLocation = tempDir
             };
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = appEntity.Id,
+                Status = UninstallSessionStatus.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Ensure DB schema exists and persist parent entities
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(appEntity);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
+            }
 
             var planItem = new CleanupPlanItem
             {
@@ -187,7 +197,7 @@ public class DependencyInjectionValidationTests
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = appEntity.Id,
-                UninstallSessionId = Guid.NewGuid(),
+                UninstallSessionId = session.Id,
                 CreatedAt = DateTime.UtcNow,
                 Items = new List<CleanupPlanItem> { planItem }
             };
@@ -215,7 +225,7 @@ public class DependencyInjectionValidationTests
             await execVm.StartExecutionAsync();
 
             // 7. Verify successful execution without ObjectDisposedException
-            Assert.Equal(1, execVm.SuccessCount);
+            Assert.True(execVm.SuccessCount == 1, $"Status: {execVm.StatusMessage}, State: {execVm.State}, Error: {execVm.ErrorMessage}, ItemState: {execVm.Items.FirstOrDefault()?.State}");
             Assert.Equal(0, execVm.FailedCount);
             Assert.False(File.Exists(targetFile));
 
@@ -243,13 +253,23 @@ public class DependencyInjectionValidationTests
             var provider = CreateProductionServiceProvider();
             var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
 
+            var appEntity = new Application { Id = Guid.NewGuid(), Name = "Repeat App", InstallLocation = tempDir };
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = appEntity.Id,
+                Status = UninstallSessionStatus.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+
             using (var initScope = provider.CreateScope())
             {
                 var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(appEntity);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
             }
-
-            var appEntity = new Application { Id = Guid.NewGuid(), Name = "Repeat App", InstallLocation = tempDir };
 
             for (int i = 0; i < 50; i++)
             {
@@ -270,7 +290,7 @@ public class DependencyInjectionValidationTests
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = appEntity.Id,
-                    UninstallSessionId = Guid.NewGuid(),
+                    UninstallSessionId = session.Id,
                     Items = new List<CleanupPlanItem> { item }
                 };
 
@@ -304,13 +324,24 @@ public class DependencyInjectionValidationTests
             var provider = CreateProductionServiceProvider();
             var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
 
+            var appEntity = new Application { Id = Guid.NewGuid(), Name = "NavDefer App", InstallLocation = tempDir };
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = appEntity.Id,
+                Status = UninstallSessionStatus.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+
             using (var initScope = provider.CreateScope())
             {
                 var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
                 await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(appEntity);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
             }
 
-            var appEntity = new Application { Id = Guid.NewGuid(), Name = "NavDefer App", InstallLocation = tempDir };
             var item = new CleanupPlanItem
             {
                 Id = Guid.NewGuid(),
@@ -324,7 +355,7 @@ public class DependencyInjectionValidationTests
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = appEntity.Id,
-                UninstallSessionId = Guid.NewGuid(),
+                UninstallSessionId = session.Id,
                 Items = new List<CleanupPlanItem> { item }
             };
 
