@@ -9,6 +9,8 @@ namespace Uninstaller.Core.Services;
 
 public class EvidenceEngine : IEvidenceEngine
 {
+    private readonly ICanonicalPathResolver? _pathResolver;
+
     private static readonly string[] ProtectedPaths = 
     {
         @"Documents",
@@ -20,6 +22,11 @@ public class EvidenceEngine : IEvidenceEngine
         @"OneDrive",
         @"Dropbox"
     };
+
+    public EvidenceEngine(ICanonicalPathResolver? pathResolver = null)
+    {
+        _pathResolver = pathResolver;
+    }
 
     public ArtifactAnalysisResult Analyze(ResidualArtifactCandidate candidate)
     {
@@ -73,16 +80,35 @@ public class EvidenceEngine : IEvidenceEngine
         // Protection Rules
         if (candidate.Artifact.Path != null)
         {
-            string normalizedPath = candidate.Artifact.Path.Replace("/", "\\").TrimEnd('\\');
-            foreach (var protectedPath in ProtectedPaths)
+            if (_pathResolver != null)
             {
-                if (normalizedPath.IndexOf($"\\{protectedPath}\\", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    normalizedPath.EndsWith($"\\{protectedPath}", StringComparison.OrdinalIgnoreCase))
+                var safety = _pathResolver.ResolveAndVerify(candidate.Artifact.Path);
+                if (safety.IsProtected)
                 {
                     isProtected = true;
-                    warnings.Add($"Path resides in protected user-data location: {protectedPath}");
-                    appliedRules.Add("Protected User-Data Location Override");
-                    break;
+                    warnings.Add($"Path is protected by system safety policy: {candidate.Artifact.Path}");
+                    appliedRules.Add("Protected Location Override");
+                }
+            }
+            else
+            {
+                string normalizedPath = candidate.Artifact.Path.Replace("/", "\\").TrimEnd('\\');
+                foreach (var protectedPath in ProtectedPaths)
+                {
+                    if (candidate.Artifact.Type == ArtifactType.Shortcut && 
+                        string.Equals(protectedPath, "Desktop", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    if (normalizedPath.IndexOf($"\\{protectedPath}\\", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        normalizedPath.EndsWith($"\\{protectedPath}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isProtected = true;
+                        warnings.Add($"Path resides in protected user-data location: {protectedPath}");
+                        appliedRules.Add("Protected User-Data Location Override");
+                        break;
+                    }
                 }
             }
         }

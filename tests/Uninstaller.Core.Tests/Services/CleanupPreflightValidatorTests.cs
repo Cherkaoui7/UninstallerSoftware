@@ -106,16 +106,14 @@ public class CleanupPreflightValidatorTests
     }
 
     [Fact]
-    public async Task ValidateAsync_RootDirectory_ReturnsOutsideExpectedRoot()
+    public async Task ValidateAsync_OutsideExpectedRoot_ReturnsOutsideExpectedRoot()
     {
-        var item = CreateValidPlanItem(ArtifactType.Directory, @"C:\App");
+        var item = CreateValidPlanItem(ArtifactType.Directory, @"C:\OtherApp");
         var app = CreateApp();
 
         _pathResolverMock.Setup(r => r.IsPathContainedWithin(item.Path!, app.InstallLocation!)).Returns(true);
         _pathResolverMock.Setup(r => r.ResolveAndVerify(item.Path!, app.InstallLocation, default))
-            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = @"C:\App", IsWithinExpectedRoot = true });
-        _pathResolverMock.Setup(r => r.ResolveAndVerify(app.InstallLocation!, null, default))
-            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = @"C:\App" });
+            .Returns(new PathSafetyResult { IsValid = true, CanonicalPath = @"C:\OtherApp", IsWithinExpectedRoot = false });
 
         var result = await _validator.ValidateAsync(item, app);
 

@@ -120,14 +120,10 @@ public class CleanupPreflightValidator : ICleanupPreflightValidator
             return;
         }
 
-        if (expectedRoot != null && safety.IsWithinExpectedRoot)
+        if (expectedRoot != null && !safety.IsWithinExpectedRoot)
         {
-            var canonicalExpectedRoot = _pathResolver.ResolveAndVerify(expectedRoot).CanonicalPath;
-            if (string.Equals(safety.CanonicalPath, canonicalExpectedRoot, StringComparison.OrdinalIgnoreCase))
-            {
-                Reject(result, PreflightValidationOutcome.OutsideExpectedRoot, "Target is exactly the expected root, which is not allowed.");
-                return;
-            }
+            Reject(result, PreflightValidationOutcome.OutsideExpectedRoot, "Target is outside the expected root.");
+            return;
         }
 
         if (item.ArtifactType == ArtifactType.File)

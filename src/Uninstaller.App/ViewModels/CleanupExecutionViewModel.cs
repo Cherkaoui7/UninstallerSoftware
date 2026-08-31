@@ -150,8 +150,7 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
 
     private void OnTrackerStateChanged(object? sender, ItemExecutionStateChangedEventArgs e)
     {
-        // Marshal to UI thread
-        System.Windows.Application.Current?.Dispatcher.InvokeAsync(() =>
+        void Apply()
         {
             if (_isExecutionCompleted) return;
             var item = Items.FirstOrDefault(i => i.Id == e.ItemId);
@@ -160,7 +159,16 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
                 item.State = e.State;
                 UpdateCounters();
             }
-        });
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher != null)
+        {
+            System.Windows.Application.Current.Dispatcher.InvokeAsync(Apply);
+        }
+        else
+        {
+            Apply();
+        }
     }
 
     private void UpdateCounters()
@@ -193,6 +201,9 @@ public partial class CleanupExecutionViewModel : ViewModelBase, IDisposable
             if (item != null)
             {
                 item.Outcome = execResult.Outcome;
+                item.State = execResult.Outcome == CleanupOutcome.DeletedAndVerified 
+                    ? CleanupItemExecutionState.Succeeded 
+                    : CleanupItemExecutionState.Failed;
                 item.FailureReason = MapFailureReason(execResult.FailureReason);
             }
         }

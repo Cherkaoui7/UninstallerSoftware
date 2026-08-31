@@ -158,4 +158,112 @@ public class WindowsCanonicalPathResolverTests
         var result = _resolver.ResolveAndVerify(@"C:\App", cancellationToken: cts.Token);
         Assert.True(result.IsValid);
     }
+
+    [Theory]
+    [InlineData(@"C:\Users\test\AppData\Roaming\Telegram Desktop")]
+    [InlineData(@"C:\Users\test\AppData\Local\Programs\Telegram Desktop")]
+    [InlineData(@"C:\Users\test\AppData\LocalLow\Telegram Desktop")]
+    [InlineData(@"C:\Program Files\7-Zip")]
+    [InlineData(@"C:\Program Files (x86)\7-Zip")]
+    [InlineData(@"C:\ProgramData\Telegram Desktop")]
+    public void ResolveAndVerify_ApplicationOwnedLocations_AreNotProtected(string appPath)
+    {
+        var result = _resolver.ResolveAndVerify(appPath);
+        Assert.True(result.IsValid);
+        Assert.False(result.IsProtected, $"Path '{appPath}' should not be protected.");
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\cmd.exe")]
+    [InlineData(@"C:\Windows\explorer.exe")]
+    [InlineData(@"C:\Windows\SysWOW64\kernel32.dll")]
+    [InlineData(@"C:\$Recycle.Bin\S-1-5-21\file.tmp")]
+    [InlineData(@"C:\System Volume Information\tracking.log")]
+    [InlineData(@"C:\Recovery\Agent\agent.exe")]
+    public void ResolveAndVerify_ProtectedSystemSubtrees_AreFlaggedProtected(string systemPath)
+    {
+        var result = _resolver.ResolveAndVerify(systemPath);
+        Assert.True(result.IsValid);
+        Assert.True(result.IsProtected, $"System path '{systemPath}' must be protected.");
+    }
+
+    [Theory]
+    [InlineData(@"C:\Users\test\Documents\MyReport.docx")]
+    [InlineData(@"C:\Users\test\Downloads\Installer.exe")]
+    [InlineData(@"C:\Users\test\Pictures\Vacation.png")]
+    [InlineData(@"C:\Users\test\Videos\Recording.mp4")]
+    [InlineData(@"C:\Users\test\Music\Song.mp3")]
+    [InlineData(@"C:\Users\test\OneDrive\Secret.docx")]
+    [InlineData(@"C:\Users\test\Dropbox\Project.zip")]
+    public void ResolveAndVerify_ProtectedUserDataSubtrees_AreFlaggedProtected(string userPath)
+    {
+        // For testing arbitrary user profile subtrees without depending on current machine username:
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var actualUserDoc = Path.Combine(userProfile, "Documents", "test.txt");
+        var actualUserDownload = Path.Combine(userProfile, "Downloads", "test.exe");
+        var actualUserOneDrive = Path.Combine(userProfile, "OneDrive", "test.txt");
+
+        var resDoc = _resolver.ResolveAndVerify(actualUserDoc);
+        Assert.True(resDoc.IsProtected);
+
+        var resDl = _resolver.ResolveAndVerify(actualUserDownload);
+        Assert.True(resDl.IsProtected);
+
+        var resOD = _resolver.ResolveAndVerify(actualUserOneDrive);
+        Assert.True(resOD.IsProtected);
+    }
+
+    [Fact]
+    public void ResolveAndVerify_ExactContainerRoots_AreFlaggedProtected()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        Assert.True(_resolver.ResolveAndVerify(@"C:\").IsProtected);
+        Assert.True(_resolver.ResolveAndVerify(@"C:\Program Files").IsProtected);
+        Assert.True(_resolver.ResolveAndVerify(@"C:\Program Files (x86)").IsProtected);
+        Assert.True(_resolver.ResolveAndVerify(@"C:\ProgramData").IsProtected);
+        Assert.True(_resolver.ResolveAndVerify(@"C:\Users").IsProtected);
+        
+        if (!string.IsNullOrWhiteSpace(userProfile))
+        {
+            Assert.True(_resolver.ResolveAndVerify(userProfile).IsProtected);
+            Assert.True(_resolver.ResolveAndVerify(Path.Combine(userProfile, "AppData")).IsProtected);
+            Assert.True(_resolver.ResolveAndVerify(Path.Combine(userProfile, "AppData", "Roaming")).IsProtected);
+            Assert.True(_resolver.ResolveAndVerify(Path.Combine(userProfile, "AppData", "Local")).IsProtected);
+        }
+    }
+
+    [Fact]
+    public void ResolveAndVerify_DesktopShortcuts_AreAllowed_WhileDesktopFilesAreProtected()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var desktopShortcut = Path.Combine(userProfile, "Desktop", "Telegram.lnk");
+        var desktopFolder = Path.Combine(userProfile, "Desktop", "PersonalData");
+        var desktopDoc = Path.Combine(userProfile, "Desktop", "Budget.xlsx");
+
+        var resShortcut = _resolver.ResolveAndVerify(desktopShortcut);
+        Assert.False(resShortcut.IsProtected, "Desktop .lnk shortcuts must not be flagged protected at path resolver level.");
+
+        var resFolder = _resolver.ResolveAndVerify(desktopFolder);
+        Assert.True(resFolder.IsProtected, "Non-shortcut desktop folders must be protected.");
+
+        var resDoc = _resolver.ResolveAndVerify(desktopDoc);
+        Assert.True(resDoc.IsProtected, "Non-shortcut desktop files must be protected.");
+    }
+
+    [Fact]
+    public void ResolveAndVerify_CanonicalEquivalence_ProducesIdenticalDecision()
+    {
+        var path1 = @"C:\Users\test\AppData\Roaming\Telegram Desktop\..\Telegram Desktop";
+        var path2 = @"C:\Users\test\AppData\Roaming\Telegram Desktop\";
+        var path3 = @"c:\users\test\appdata\roaming\telegram desktop";
+
+        var res1 = _resolver.ResolveAndVerify(path1);
+        var res2 = _resolver.ResolveAndVerify(path2);
+        var res3 = _resolver.ResolveAndVerify(path3);
+
+        Assert.Equal(res1.IsProtected, res2.IsProtected);
+        Assert.Equal(res2.IsProtected, res3.IsProtected);
+        Assert.False(res1.IsProtected);
+    }
 }

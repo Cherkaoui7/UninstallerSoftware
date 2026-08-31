@@ -9,13 +9,15 @@ namespace Uninstaller.Windows.Filesystem;
 
 public class WindowsCanonicalPathResolver : ICanonicalPathResolver
 {
-    private static readonly Lazy<HashSet<string>> _protectedPaths = new Lazy<HashSet<string>>(GetProtectedPaths);
+    private static readonly Lazy<HashSet<string>> _recursivelyProtectedPaths = new Lazy<HashSet<string>>(GetRecursivelyProtectedPaths);
+    private static readonly Lazy<HashSet<string>> _exactProtectedRoots = new Lazy<HashSet<string>>(GetExactProtectedRoots);
+    private static readonly Lazy<HashSet<string>> _desktopDirectories = new Lazy<HashSet<string>>(GetDesktopDirectories);
 
-    private static HashSet<string> GetProtectedPaths()
+    private static HashSet<string> GetRecursivelyProtectedPaths()
     {
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         
-        void AddPathSafe(Environment.SpecialFolder folder)
+        void AddFolderRecursive(Environment.SpecialFolder folder)
         {
             try
             {
@@ -28,26 +30,128 @@ public class WindowsCanonicalPathResolver : ICanonicalPathResolver
             catch { }
         }
 
-        AddPathSafe(Environment.SpecialFolder.Windows);
-        AddPathSafe(Environment.SpecialFolder.System);
-        AddPathSafe(Environment.SpecialFolder.SystemX86);
-        AddPathSafe(Environment.SpecialFolder.ProgramFiles);
-        AddPathSafe(Environment.SpecialFolder.ProgramFilesX86);
-        AddPathSafe(Environment.SpecialFolder.CommonApplicationData);
-        AddPathSafe(Environment.SpecialFolder.MyDocuments);
-        AddPathSafe(Environment.SpecialFolder.UserProfile);
-        AddPathSafe(Environment.SpecialFolder.Desktop);
-        AddPathSafe(Environment.SpecialFolder.MyPictures);
-        AddPathSafe(Environment.SpecialFolder.MyVideos);
-        AddPathSafe(Environment.SpecialFolder.MyMusic);
+        // 1. Windows OS subtrees (all contents protected)
+        AddFolderRecursive(Environment.SpecialFolder.Windows);
+        AddFolderRecursive(Environment.SpecialFolder.System);
+        AddFolderRecursive(Environment.SpecialFolder.SystemX86);
 
-        // Explicit fallback for typically protected folders if they fail to resolve via SpecialFolder
         var systemDrive = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
-        paths.Add($@"{systemDrive}\Windows");
-        paths.Add($@"{systemDrive}\Program Files");
-        paths.Add($@"{systemDrive}\Program Files (x86)");
+        paths.Add(NormalizeLexically($@"{systemDrive}\Windows"));
+        paths.Add(NormalizeLexically($@"{systemDrive}\Recovery"));
+        paths.Add(NormalizeLexically($@"{systemDrive}\$Recycle.Bin"));
+        paths.Add(NormalizeLexically($@"{systemDrive}\System Volume Information"));
+        paths.Add(NormalizeLexically($@"{systemDrive}\Boot"));
+        paths.Add(NormalizeLexically($@"{systemDrive}\EFI"));
+
+        // 2. Personal user-data subtrees (all personal documents and media protected)
+        AddFolderRecursive(Environment.SpecialFolder.MyDocuments);
+        AddFolderRecursive(Environment.SpecialFolder.MyPictures);
+        AddFolderRecursive(Environment.SpecialFolder.MyVideos);
+        AddFolderRecursive(Environment.SpecialFolder.MyMusic);
+
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(userProfile))
+        {
+            var normalizedUser = NormalizeLexically(userProfile);
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Documents")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Downloads")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Pictures")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Videos")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Music")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "OneDrive")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Dropbox")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "Google Drive")));
+            paths.Add(NormalizeLexically(Path.Combine(normalizedUser, "iCloudDrive")));
+        }
 
         return paths;
+    }
+
+    private static HashSet<string> GetExactProtectedRoots()
+    {
+        var roots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        void AddRootExact(Environment.SpecialFolder folder)
+        {
+            try
+            {
+                var path = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    roots.Add(NormalizeLexically(path));
+                }
+            }
+            catch { }
+        }
+
+        // Exact container roots (the root folder itself must not be deleted, but app subdirectories inside are allowed)
+        AddRootExact(Environment.SpecialFolder.UserProfile);
+        AddRootExact(Environment.SpecialFolder.ProgramFiles);
+        AddRootExact(Environment.SpecialFolder.ProgramFilesX86);
+        AddRootExact(Environment.SpecialFolder.CommonApplicationData); // ProgramData
+        AddRootExact(Environment.SpecialFolder.CommonProgramFiles);
+        AddRootExact(Environment.SpecialFolder.CommonProgramFilesX86);
+        AddRootExact(Environment.SpecialFolder.Desktop);
+        AddRootExact(Environment.SpecialFolder.DesktopDirectory);
+        AddRootExact(Environment.SpecialFolder.CommonDesktopDirectory);
+        AddRootExact(Environment.SpecialFolder.ApplicationData); // Roaming
+        AddRootExact(Environment.SpecialFolder.LocalApplicationData); // Local
+
+        var systemDrive = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
+        roots.Add(NormalizeLexically(systemDrive + "\\"));
+        roots.Add(NormalizeLexically(systemDrive));
+        roots.Add(NormalizeLexically($@"{systemDrive}\Program Files"));
+        roots.Add(NormalizeLexically($@"{systemDrive}\Program Files (x86)"));
+        roots.Add(NormalizeLexically($@"{systemDrive}\ProgramData"));
+        roots.Add(NormalizeLexically($@"{systemDrive}\Users"));
+
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(userProfile))
+        {
+            var normalizedUser = NormalizeLexically(userProfile);
+            roots.Add(normalizedUser);
+            roots.Add(NormalizeLexically(Path.Combine(normalizedUser, "AppData")));
+            roots.Add(NormalizeLexically(Path.Combine(normalizedUser, "AppData", "Local")));
+            roots.Add(NormalizeLexically(Path.Combine(normalizedUser, "AppData", "LocalLow")));
+            roots.Add(NormalizeLexically(Path.Combine(normalizedUser, "AppData", "Roaming")));
+            roots.Add(NormalizeLexically(Path.Combine(normalizedUser, "Desktop")));
+            var usersDir = Path.GetDirectoryName(normalizedUser);
+            if (!string.IsNullOrWhiteSpace(usersDir))
+            {
+                roots.Add(NormalizeLexically(usersDir));
+            }
+        }
+
+        return roots;
+    }
+
+    private static HashSet<string> GetDesktopDirectories()
+    {
+        var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        void AddDesktopSafe(Environment.SpecialFolder folder)
+        {
+            try
+            {
+                var path = Environment.GetFolderPath(folder);
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    dirs.Add(NormalizeLexically(path));
+                }
+            }
+            catch { }
+        }
+
+        AddDesktopSafe(Environment.SpecialFolder.Desktop);
+        AddDesktopSafe(Environment.SpecialFolder.DesktopDirectory);
+        AddDesktopSafe(Environment.SpecialFolder.CommonDesktopDirectory);
+
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrWhiteSpace(userProfile))
+        {
+            dirs.Add(NormalizeLexically(Path.Combine(userProfile, "Desktop")));
+        }
+
+        return dirs;
     }
 
     private static string NormalizeLexically(string path)
@@ -126,14 +230,53 @@ public class WindowsCanonicalPathResolver : ICanonicalPathResolver
             return result;
         }
 
-        // 1. Check Protected Paths
-        foreach (var protectedRoot in _protectedPaths.Value)
+        // 1. Check Protected Roots and Subtrees
+        // 1a. Drive root check
+        var pathRoot = Path.GetPathRoot(canonical);
+        if (string.Equals(canonical, pathRoot?.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(canonical, pathRoot, StringComparison.OrdinalIgnoreCase))
         {
-            if (IsPathContainedWithin(canonical, protectedRoot))
+            result.IsProtected = true;
+            result.Warnings.Add($"Path is a drive root: {canonical}");
+            return result;
+        }
+
+        // 1b. Exact protected roots (e.g. C:\Program Files, C:\Users\user, C:\Users\user\AppData\Roaming, etc.)
+        if (_exactProtectedRoots.Value.Contains(canonical))
+        {
+            result.IsProtected = true;
+            result.Warnings.Add($"Path is an exact protected system or container root: {canonical}");
+        }
+        else
+        {
+            // 1c. Desktop handling: allow application shortcut files (.lnk), protect user folders/files
+            bool isDesktopPath = false;
+            foreach (var desktopDir in _desktopDirectories.Value)
             {
-                result.IsProtected = true;
-                result.Warnings.Add($"Path is within or equal to protected system location: {protectedRoot}");
-                break; // One protection is enough
+                if (IsPathContainedWithin(canonical, desktopDir))
+                {
+                    isDesktopPath = true;
+                    if (!canonical.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.IsProtected = true;
+                        result.Warnings.Add($"Path is non-shortcut user data on Desktop: {canonical}");
+                    }
+                    break;
+                }
+            }
+
+            // 1d. Recursively protected trees (e.g. C:\Windows, C:\Users\user\Documents, Downloads, etc.)
+            if (!result.IsProtected && !isDesktopPath)
+            {
+                foreach (var protectedTree in _recursivelyProtectedPaths.Value)
+                {
+                    if (IsPathContainedWithin(canonical, protectedTree))
+                    {
+                        result.IsProtected = true;
+                        result.Warnings.Add($"Path is within or equal to protected location: {protectedTree}");
+                        break;
+                    }
+                }
             }
         }
 
