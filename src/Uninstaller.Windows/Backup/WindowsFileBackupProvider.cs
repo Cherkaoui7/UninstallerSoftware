@@ -39,7 +39,7 @@ public class WindowsFileBackupProvider : IFileBackupProvider
     {
         var backup = new Uninstaller.Domain.Entities.Backup
         {
-            ArtifactId = Guid.NewGuid(),
+            ArtifactId = item.ArtifactId != Guid.Empty ? item.ArtifactId : Guid.NewGuid(),
             ArtifactType = item.ArtifactType,
             OriginalPath = item.Path,
             Status = BackupStatus.Pending

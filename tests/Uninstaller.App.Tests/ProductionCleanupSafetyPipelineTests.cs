@@ -335,4 +335,177 @@ public class ProductionCleanupSafetyPipelineTests
             }
         }
     }
+
+    [Fact]
+    public async Task Req14_SchemaIntegrity_MissingParentSession_ThrowsForeignKeyException()
+    {
+        var provider = CreateProductionServiceProvider();
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var missingSessionId = Guid.NewGuid();
+        var backup = new Backup
+        {
+            Id = Guid.NewGuid(),
+            SessionId = missingSessionId, // Missing parent in UninstallSessions
+            ArtifactId = Guid.NewGuid(),
+            ArtifactType = ArtifactType.File,
+            OriginalPath = @"C:\Test\file.bin",
+            BackupPath = @"C:\Test\backup.bin",
+            Status = BackupStatus.Committed,
+            VerificationStatus = BackupVerificationStatus.Verified
+        };
+
+        db.Backups.Add(backup);
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("FOREIGN KEY", ex.InnerException.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Req15_SchemaIntegrity_MissingApplicationParent_ThrowsForeignKeyException()
+    {
+        var provider = CreateProductionServiceProvider();
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var missingAppId = Guid.NewGuid();
+        var session = new UninstallSession
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = missingAppId, // Missing parent in Applications
+            Status = UninstallSessionStatus.Completed,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.UninstallSessions.Add(session);
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("FOREIGN KEY", ex.InnerException.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Req16_SchemaIntegrity_MissingCleanupPlanParent_ThrowsForeignKeyException()
+    {
+        var provider = CreateProductionServiceProvider();
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var missingPlanId = Guid.NewGuid();
+        var planItem = new CleanupPlanItem
+        {
+            Id = Guid.NewGuid(),
+            CleanupPlanId = missingPlanId, // Missing parent in CleanupPlans
+            ArtifactId = Guid.NewGuid(),
+            ArtifactType = ArtifactType.File,
+            Path = @"C:\Test\file.bin",
+            Classification = ArtifactClassification.ApplicationOwned,
+            RiskLevel = RiskLevel.Low,
+            Recommended = true
+        };
+
+        db.CleanupPlanItems.Add(planItem);
+
+        var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        Assert.NotNull(ex.InnerException);
+        Assert.Contains("FOREIGN KEY", ex.InnerException.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Req17_ProductionIdentityLifecycle_ResidualAnalysisToBackup_PreservesAllForeignKeys()
+    {
+        var testBase = Path.Combine(Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\", "UninstallerSafetyTests");
+        var tempAppDir = Path.Combine(testBase, "Telegram Desktop");
+        Directory.CreateDirectory(tempAppDir);
+        var artifactFile = Path.Combine(tempAppDir, "telegram.exe");
+        File.WriteAllText(artifactFile, "binary content");
+
+        try
+        {
+            var provider = CreateProductionServiceProvider();
+            
+            var app = new Application
+            {
+                Id = Guid.NewGuid(),
+                Name = "Telegram Desktop",
+                InstallLocation = tempAppDir
+            };
+
+            var session = new UninstallSession
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = UninstallSessionStatus.Completed,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            using (var initScope = provider.CreateScope())
+            {
+                var db = initScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await db.Database.EnsureCreatedAsync();
+                db.Applications.Add(app);
+                db.UninstallSessions.Add(session);
+                await db.SaveChangesAsync();
+            }
+
+            // 1. Run Residual Analysis
+            using var analysisScope = provider.CreateScope();
+            var analysisService = analysisScope.ServiceProvider.GetRequiredService<IResidualAnalysisService>();
+            var analysisResult = await analysisService.RunAnalysisAsync(session, app);
+
+            Assert.NotNull(analysisResult.Plan);
+            // Critical Identity Assertion: Plan.UninstallSessionId MUST equal the persisted UninstallSession.Id
+            Assert.Equal(session.Id, analysisResult.Plan.UninstallSessionId);
+
+            // 2. Persist CleanupPlan
+            using (var planScope = provider.CreateScope())
+            {
+                var db = planScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.CleanupPlans.Add(analysisResult.Plan);
+                await db.SaveChangesAsync(); // Must not throw FK violation!
+            }
+
+            // 3. Execute Cleanup with Backup
+            var cleanupFactory = provider.GetRequiredService<ICleanupViewModelFactory>();
+            var selectedIds = analysisResult.Plan.Items.Select(i => i.Id).ToList();
+
+            using var execVm = cleanupFactory.CreateExecutionViewModel(analysisResult.Plan, app, selectedIds);
+            await execVm.StartExecutionAsync();
+
+            // 4. Verify All Entities and FK relationships in Database
+            using (var verifyScope = provider.CreateScope())
+            {
+                var db = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+                
+                // Verify Backups
+                var backups = await db.Backups.Where(b => b.SessionId == session.Id).ToListAsync();
+                Assert.NotEmpty(backups);
+                foreach (var b in backups)
+                {
+                    Assert.Equal(session.Id, b.SessionId);
+                    Assert.Equal(BackupVerificationStatus.Verified, b.VerificationStatus);
+                    
+                    // Verify parent session exists
+                    var parentSession = await db.UninstallSessions.FindAsync(b.SessionId);
+                    Assert.NotNull(parentSession);
+                }
+
+                // Verify Journal Entries
+                var journalEntries = await db.TransactionJournalEntries.Where(j => j.SessionId == session.Id).ToListAsync();
+                Assert.NotEmpty(journalEntries);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(tempAppDir))
+            {
+                try { Directory.Delete(tempAppDir, true); } catch { }
+            }
+        }
+    }
 }

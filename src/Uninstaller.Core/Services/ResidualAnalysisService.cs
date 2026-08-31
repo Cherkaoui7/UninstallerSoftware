@@ -81,7 +81,7 @@ public class ResidualAnalysisService : IResidualAnalysisService
                 analysisResults.Add(result);
             }
 
-            session.Plan = _planGenerator.Generate(session.Id, application.Id, analysisResults);
+            session.Plan = _planGenerator.Generate(uninstallSession.Id, application.Id, analysisResults);
             session.ArtifactCount = session.Plan.Items.Count;
             session.Status = ResidualAnalysisStatus.Completed;
             session.CompletedAt = DateTime.UtcNow;

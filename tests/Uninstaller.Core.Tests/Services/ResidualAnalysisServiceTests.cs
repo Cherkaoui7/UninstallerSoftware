@@ -87,6 +87,9 @@ public class ResidualAnalysisServiceTests
         Assert.Equal(0, result.ErrorCount);
         Assert.NotNull(result.StartedAt);
         Assert.NotNull(result.CompletedAt);
+        Assert.NotNull(result.Plan);
+        Assert.Equal(uninstallSession.Id, result.Plan.UninstallSessionId);
+        _planGenMock.Verify(p => p.Generate(uninstallSession.Id, application.Id, It.IsAny<IEnumerable<ArtifactAnalysisResult>>()), Times.Once);
     }
 
     [Fact]
