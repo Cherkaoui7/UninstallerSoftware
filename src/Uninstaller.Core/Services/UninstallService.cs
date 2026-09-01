@@ -17,6 +17,8 @@ public class UninstallService : IUninstallService
     private readonly IDiscoveryService _discoveryService;
     private readonly ILogger<UninstallService> _logger;
 
+    public Func<int, CancellationToken, Task> DelayTask { get; set; } = Task.Delay;
+
     public UninstallService(
         IUninstallSessionRepository sessionRepository,
         IApplicationRepository applicationRepository,
@@ -104,24 +106,55 @@ public class UninstallService : IUninstallService
 
             try
             {
-                await _discoveryService.DiscoverApplicationsAsync(cancellationToken);
-                
-                var refreshedApp = await _applicationRepository.GetByIdAsync(application.Id, cancellationToken);
-                var isStillInstalled = refreshedApp != null && refreshedApp.IsPresent;
+                bool isStillInstalled = true;
+                int maxRetries = 20; // 20 * 500ms = 10 seconds
+                int delayMs = 500;
+                TimeSpan totalElapsed = TimeSpan.Zero;
+
+                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                {
+                    await _discoveryService.DiscoverApplicationsAsync(cancellationToken);
+                    
+                    var refreshedApp = await _applicationRepository.GetByIdAsync(application.Id, cancellationToken);
+                    isStillInstalled = refreshedApp != null && refreshedApp.IsPresent;
+
+                    _logger.LogInformation(
+                        "Verification attempt {Attempt}: ApplicationId {ApplicationId}, ApplicationName {ApplicationName}, Elapsed: {Elapsed}ms, IsPresent: {IsPresent}",
+                        attempt, application.Id, application.Name, totalElapsed.TotalMilliseconds, isStillInstalled);
+                    
+                    Console.WriteLine($"\n[VERIFICATION_DEBUG] Attempt: {attempt}, isStillInstalled: {isStillInstalled}\n");
+
+                    if (!isStillInstalled)
+                    {
+                        break;
+                    }
+
+                    if (attempt < maxRetries)
+                    {
+                        await DelayTask(delayMs, cancellationToken);
+                        totalElapsed += TimeSpan.FromMilliseconds(delayMs);
+                    }
+                }
 
                 if (isStillInstalled)
                 {
                     session.VerificationResult = VerificationResult.StillInstalled;
+                    _logger.LogWarning("Verification failed for {ApplicationId}: Application is still installed after {MaxTime}ms.", application.Id, totalElapsed.TotalMilliseconds);
                     return await FailSessionAsync(session, "Application is still installed after uninstallation.", cancellationToken);
                 }
 
                 session.VerificationResult = VerificationResult.VerifiedRemoved;
+                _logger.LogInformation("Verification succeeded for {ApplicationId}: Application removed in {Elapsed}ms.", application.Id, totalElapsed.TotalMilliseconds);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 session.VerificationResult = VerificationResult.VerificationFailed;
                 _logger.LogWarning(ex, "Failed to run discovery during verification for session {SessionId}", session.Id);
-                return await FailSessionAsync(session, $"Discovery verification failed: {ex.Message}", cancellationToken);
+                return await FailSessionAsync(session, $"Discovery verification failed: {ex.Message}", default);
             }
 
             // Completed
@@ -205,6 +238,7 @@ public class UninstallService : IUninstallService
             (UninstallSessionStatus.ProcessCompleted, UninstallSessionStatus.Failed) => true,
             (UninstallSessionStatus.Verifying, UninstallSessionStatus.Completed) => true,
             (UninstallSessionStatus.Verifying, UninstallSessionStatus.Failed) => true,
+            (UninstallSessionStatus.Verifying, UninstallSessionStatus.Cancelled) => true,
             _ => false
         };
 
