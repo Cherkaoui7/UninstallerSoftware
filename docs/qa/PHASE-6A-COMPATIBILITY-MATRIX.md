@@ -35,7 +35,7 @@ Perform a comprehensive real-world compatibility audit of the current Uninstalle
 | 7-Zip 26.02 | Per-Machine | x64 | EXE Uninstaller |
 | Telegram Desktop | Per-User | x64 | Inno Setup (EXE) |
 | MS VC++ 2013 | Per-Machine | x86 (WoW64) | WiX Burn Bootstrapper |
-| Git | | | |
+| Git | Per-Machine | x64 | Inno Setup (EXE) |
 | Python 3.12.10 | | | |
 | SteelSeries GG | | | |
 | Composer | | | |
@@ -49,7 +49,7 @@ Perform a comprehensive real-world compatibility audit of the current Uninstalle
 | 7-Zip 26.02 | Registry (HKLM) | Parsed (`C:\Program Files\7-Zip\Uninstall.exe`) | Run EXE | 0 (Success) | VERIFIED PASS |
 | Telegram Desktop | Registry (HKCU) | Executable (`unins000.exe`) | Run EXE | 0 (Success) | VERIFIED PASS |
 | MS VC++ 2013 | Registry (WoW64) | Executable (`vcredist_x86.exe`) | Run EXE | 0 (Success) | VERIFIED PASS |
-| Git | | | | | |
+| Git | Registry (HKLM) | Executable (`unins000.exe`) | Run EXE | 0 (Success) | VERIFIED PASS |
 | Python 3.12.10 | | | | | |
 | SteelSeries GG | | | | | |
 | Composer | | | | | |
@@ -63,7 +63,7 @@ Perform a comprehensive real-world compatibility audit of the current Uninstalle
 | 7-Zip 26.02 | None | N/A | Low | N/A |
 | Telegram Desktop | None | N/A | Low | N/A |
 | MS VC++ 2013 | None | N/A | Low | N/A |
-| Git | | | | |
+| Git | None | N/A | Low | N/A |
 | Python 3.12.10 | | | | |
 | SteelSeries GG | | | | |
 | Composer | | | | |
@@ -77,7 +77,7 @@ Perform a comprehensive real-world compatibility audit of the current Uninstalle
 | 7-Zip 26.02 | N/A | N/A | N/A |
 | Telegram Desktop | N/A | N/A | N/A |
 | MS VC++ 2013 | N/A | N/A | N/A |
-| Git | | | |
+| Git | N/A | N/A | N/A |
 | Python 3.12.10 | | | |
 | SteelSeries GG | | | |
 | Composer | | | |
@@ -95,6 +95,7 @@ Perform a comprehensive real-world compatibility audit of the current Uninstalle
 - **7-Zip**: The NSIS uninstaller returns `0` immediately before the registry keys are removed. Added a bounded retry in `UninstallService` (20 retries, 500ms delay) which successfully catches the delayed cleanup.
 - **Telegram Desktop**: The Inno Setup uninstaller successfully removes its registry keys (HKCU) and completes verification. Verification loop correctly identified absence of the application.
 - **MS VC++ 2013**: The WiX Bootstrapper uninstaller (x86 on WoW64) effectively removes its registry keys. The retry verification correctly captured the delayed registry deletion after the initial engine command completed.
+- **Git**: The Inno Setup uninstaller successfully removes its registry keys (HKLM) and completes verification correctly.
 
 ## 15. Top Compatibility Gaps
 *(To be completed at end of audit)*
